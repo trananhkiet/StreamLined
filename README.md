@@ -1,6 +1,7 @@
 # Streamlined Knowledge Distillation
 
 ### CVPR 2026 Accepted
+### Our Paper has been honored with the CVPR Compute Transparency Champion Award!
 
 This repository is the official implementation of [Streamlined Knowledge Distillation]
 
