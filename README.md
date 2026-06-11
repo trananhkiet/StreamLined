@@ -90,3 +90,12 @@ Our model achieves the following performance on :
 ## Acknowledgement
 
 We would like to thank the contributors of MDistiller for their excellent work, which served as the foundation for our implementation.
+
+@InProceedings{Jeong_2026_CVPR,
+    author    = {Jeong, Hyeon-Jin and Lee, Han-Jin and Choi, Seok-Hwan},
+    title     = {Streamlined Knowledge Distillation},
+    booktitle = {Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
+    month     = {June},
+    year      = {2026},
+    pages     = {26646-26655}
+}
