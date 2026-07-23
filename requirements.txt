@@ -69,8 +69,6 @@ packaging==24.0
 pandas==2.0.1
 pathspec==0.12.1
 perfetto==0.7.0
-pillow==11.1.0
-Pillow-SIMD==7.0.0.post3
 platformdirs==4.2.1
 pluggy==1.5.0
 portalocker==3.1.1
