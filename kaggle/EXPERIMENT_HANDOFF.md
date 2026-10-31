@@ -1,6 +1,6 @@
 # SKD experiment handoff
 
-Updated: 2026-10-31.
+Updated: 2026-10-31 (trigger tự động).
 
 ## Mục tiêu và trạng thái
 
@@ -106,3 +106,25 @@ với ít nhất 3 seed, báo cáo mean/std và accuracy cuối; chỉ test sau 
   mất hàng giờ vì mạng chậm.
 - Không kết luận từ một seed hoặc so trực tiếp với baseline 65.79% chưa matched.
 - Giữ từng run ở notebook/version riêng để không mất output và checkpoint cũ.
+
+## Trạng thái run hiện tại — BLOCKER (2026-10-31)
+
+Experiment tiếp theo theo thứ tự A1 → A2 → A3 → B → C → D là **A1** (per-sample KD mask),
+xem [experiments/2026-10-31_a1_per_sample_kd_mask.md](experiments/2026-10-31_a1_per_sample_kd_mask.md).
+Code đã commit `03ba69c` (default `KD_MASK_MODE=scalar` = hành vi run B).
+
+- Notebook: https://www.kaggle.com/code/trananhkiet/streamlined-kd-cifar100-a1-per-sample-mask
+  (kernel id 141928704). v1 là QuickSave placeholder (không train); v2 là SaveAndRunAll,
+  session output `364199594`, code tải từ GitHub commit `03ba69c` kèm SHA-256.
+- v2 **FAILED sau ~27 giây** (RuntimeError ở `prepare_cifar100`): Kaggle MCP `save_notebook`
+  âm thầm bỏ `datasetDataSources=["fedesoriano/cifar100"]` (lỗi MCP đã biết). Không tốn GPU đáng kể,
+  **không tính là retry**. `get_notebook_info` không hiển thị data sources nên MCP không xác minh được.
+- Không thử được workflow REST: session cloud này không có Kaggle CLI/credentials (`~/.kaggle` không tồn tại)
+  và shell không truy cập được kaggle.com. Theo quy tắc, không lặp lại vòng thử.
+- **Cách resume**: trong môi trường có credentials, push notebook với dataset attach đúng như run B
+  (REST push, xem kaggle/README.md): slug `trananhkiet/streamlined-kd-cifar100-a1-per-sample-mask`,
+  `dataset_sources=["fedesoriano/cifar100"]`, GPU T4, docker image như run B
+  (`gcr.io/kaggle-private-byod/python@sha256:2757e0c7d1e0a9cb43da657b97e223c321a98f5014bdf64f44f2f6b083ad2b2f`);
+  nội dung notebook = file `kaggle/experiments/a1_per_sample_kd_mask.ipynb` (inline) hoặc loader pin commit
+  `03ba69c` đã dùng ở v2 (env KD_MASK_MODE=per_sample, CE/KD 0.5/0.5). Sau đó lần trigger kế tiếp kiểm tra run.
+- Chưa có kết quả nào của A1; giả thuyết chưa được kiểm chứng.
