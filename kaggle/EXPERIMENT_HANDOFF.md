@@ -119,6 +119,7 @@ Code đã commit `03ba69c` (default `KD_MASK_MODE=scalar` = hành vi run B).
 - v2 **FAILED sau ~27 giây** (RuntimeError ở `prepare_cifar100`): Kaggle MCP `save_notebook`
   âm thầm bỏ `datasetDataSources=["fedesoriano/cifar100"]` (lỗi MCP đã biết). Không tốn GPU đáng kể,
   **không tính là retry**. `get_notebook_info` không hiển thị data sources nên MCP không xác minh được.
+- v3 thử lại với trường `datasetDataSourcesSetter` cũng FAILED sau ~28 giây, cùng lỗi (session output `364202650`): MCP bỏ dataset ở cả hai trường; không thử thêm bằng MCP.
 - Không thử được workflow REST: session cloud này không có Kaggle CLI/credentials (`~/.kaggle` không tồn tại)
   và shell không truy cập được kaggle.com. Theo quy tắc, không lặp lại vòng thử.
 - **Cách resume**: trong môi trường có credentials, push notebook với dataset attach đúng như run B
