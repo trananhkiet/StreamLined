@@ -1,0 +1,525 @@
+# %% [markdown]
+# # Streamlined KD: ResNet56 -> ResNet20 on CIFAR-100
+#
+# This notebook-ready script reproduces the homogeneous-architecture experiment
+# reported in the repository README. It intentionally keeps the paper code's
+# two-view training set and SKD loss semantics, while fixing execution issues
+# such as path handling, global-best checkpointing, and deterministic seeding.
+
+# %%
+from __future__ import annotations
+
+import copy
+import csv
+import hashlib
+import json
+import os
+import random
+import time
+import urllib.request
+from dataclasses import asdict, dataclass
+from pathlib import Path
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torchvision
+import torchvision.transforms as transforms
+from PIL import Image, ImageDraw, ImageEnhance, ImageOps
+from torch.utils.data import ConcatDataset, DataLoader
+from tqdm.auto import tqdm
+
+
+@dataclass(frozen=True)
+class Config:
+    seed: int = 2021
+    epochs: int = int(os.getenv("EPOCHS", "240"))
+    batch_size: int = int(os.getenv("BATCH_SIZE", "64"))
+    num_workers: int = int(os.getenv("NUM_WORKERS", "2"))
+    learning_rate: float = 0.1
+    momentum: float = 0.9
+    weight_decay: float = 5e-4
+    lr_milestones: tuple[int, ...] = (150, 180, 210)
+    temperature: float = 4.0
+    tik: float = 1e-1
+    ce_weight: float = 0.1
+    kd_weight: float = 0.9
+    # Set to a positive integer only for a quick pipeline smoke test.
+    limit_train_batches: int = int(os.getenv("LIMIT_TRAIN_BATCHES", "0"))
+    limit_eval_batches: int = int(os.getenv("LIMIT_EVAL_BATCHES", "0"))
+
+
+CFG = Config()
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+WORK_DIR = Path("/kaggle/working/streamlined_kd") if Path("/kaggle/working").exists() else Path.cwd() / "kaggle_outputs"
+DATA_DIR = Path("/kaggle/working/data") if Path("/kaggle/working").exists() else Path.cwd() / "data"
+KAGGLE_CIFAR_DIR = Path("/kaggle/input/cifar100")
+WORK_DIR.mkdir(parents=True, exist_ok=True)
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+print(f"PyTorch: {torch.__version__}")
+print(f"torchvision: {torchvision.__version__}")
+print(f"device: {DEVICE}")
+if DEVICE.type != "cuda" and os.getenv("ALLOW_CPU", "0") != "1":
+    raise RuntimeError("This 240-epoch experiment requires a Kaggle GPU. Enable GPU in Notebook settings.")
+
+
+def seed_everything(seed: int) -> None:
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+
+def seed_worker(worker_id: int) -> None:
+    worker_seed = (CFG.seed + worker_id) % (2**32)
+    random.seed(worker_seed)
+    np.random.seed(worker_seed)
+
+
+seed_everything(CFG.seed)
+
+# %% [markdown]
+# ## Minimal CIFAR ResNet implementation
+#
+# Only the ResNet20 student and ResNet56 teacher are retained from the original
+# repository. Both return logits directly because SKD does not consume features.
+
+# %%
+def conv3x3(in_planes: int, out_planes: int, stride: int = 1) -> nn.Conv2d:
+    return nn.Conv2d(in_planes, out_planes, 3, stride=stride, padding=1, bias=False)
+
+
+class BasicBlock(nn.Module):
+    def __init__(self, inplanes: int, planes: int, stride: int = 1, downsample: nn.Module | None = None):
+        super().__init__()
+        self.conv1 = conv3x3(inplanes, planes, stride)
+        self.bn1 = nn.BatchNorm2d(planes)
+        self.conv2 = conv3x3(planes, planes)
+        self.bn2 = nn.BatchNorm2d(planes)
+        self.downsample = downsample
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        residual = x if self.downsample is None else self.downsample(x)
+        out = F.relu(self.bn1(self.conv1(x)), inplace=True)
+        out = self.bn2(self.conv2(out))
+        return F.relu(out + residual, inplace=True)
+
+
+class CifarResNet(nn.Module):
+    def __init__(self, depth: int, num_classes: int = 100):
+        super().__init__()
+        if (depth - 2) % 6 != 0:
+            raise ValueError("CIFAR ResNet depth must be 6n+2")
+        blocks_per_stage = (depth - 2) // 6
+        self.inplanes = 16
+        self.conv1 = nn.Conv2d(3, 16, 3, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(16)
+        self.layer1 = self._make_layer(16, blocks_per_stage, stride=1)
+        self.layer2 = self._make_layer(32, blocks_per_stage, stride=2)
+        self.layer3 = self._make_layer(64, blocks_per_stage, stride=2)
+        self.fc = nn.Linear(64, num_classes)
+
+        for module in self.modules():
+            if isinstance(module, nn.Conv2d):
+                nn.init.kaiming_normal_(module.weight, mode="fan_out", nonlinearity="relu")
+            elif isinstance(module, nn.BatchNorm2d):
+                nn.init.constant_(module.weight, 1)
+                nn.init.constant_(module.bias, 0)
+
+    def _make_layer(self, planes: int, blocks: int, stride: int) -> nn.Sequential:
+        downsample = None
+        if stride != 1 or self.inplanes != planes:
+            downsample = nn.Sequential(
+                nn.Conv2d(self.inplanes, planes, 1, stride=stride, bias=False),
+                nn.BatchNorm2d(planes),
+            )
+        layers = [BasicBlock(self.inplanes, planes, stride, downsample)]
+        self.inplanes = planes
+        layers.extend(BasicBlock(planes, planes) for _ in range(1, blocks))
+        return nn.Sequential(*layers)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = F.relu(self.bn1(self.conv1(x)), inplace=True)
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        x = F.avg_pool2d(x, 8)
+        return self.fc(torch.flatten(x, 1))
+
+
+def resnet20() -> CifarResNet:
+    return CifarResNet(20, num_classes=100)
+
+
+def resnet56() -> CifarResNet:
+    return CifarResNet(56, num_classes=100)
+
+# %% [markdown]
+# ## Paper data pipeline
+#
+# The repository concatenates two complete CIFAR-100 training sets: one weakly
+# augmented and one strongly augmented with its custom RandAugment. This means
+# each epoch contains 100,000 samples, not 50,000.
+
+# %%
+def _autocontrast(img: Image.Image, _: float) -> Image.Image:
+    return ImageOps.autocontrast(img)
+
+
+def _brightness(img: Image.Image, value: float) -> Image.Image:
+    return ImageEnhance.Brightness(img).enhance(value)
+
+
+def _color(img: Image.Image, value: float) -> Image.Image:
+    return ImageEnhance.Color(img).enhance(value)
+
+
+def _contrast(img: Image.Image, value: float) -> Image.Image:
+    return ImageEnhance.Contrast(img).enhance(value)
+
+
+def _equalize(img: Image.Image, _: float) -> Image.Image:
+    return ImageOps.equalize(img)
+
+
+def _identity(img: Image.Image, _: float) -> Image.Image:
+    return img
+
+
+def _posterize(img: Image.Image, value: float) -> Image.Image:
+    return ImageOps.posterize(img, max(1, int(value)))
+
+
+def _rotate(img: Image.Image, value: float) -> Image.Image:
+    return img.rotate(value)
+
+
+def _sharpness(img: Image.Image, value: float) -> Image.Image:
+    return ImageEnhance.Sharpness(img).enhance(value)
+
+
+def _shear_x(img: Image.Image, value: float) -> Image.Image:
+    return img.transform(img.size, Image.Transform.AFFINE, (1, value, 0, 0, 1, 0))
+
+
+def _shear_y(img: Image.Image, value: float) -> Image.Image:
+    return img.transform(img.size, Image.Transform.AFFINE, (1, 0, 0, value, 1, 0))
+
+
+def _solarize(img: Image.Image, value: float) -> Image.Image:
+    return ImageOps.solarize(img, value)
+
+
+def _translate_x(img: Image.Image, value: float) -> Image.Image:
+    return img.transform(img.size, Image.Transform.AFFINE, (1, 0, value * img.size[0], 0, 1, 0))
+
+
+def _translate_y(img: Image.Image, value: float) -> Image.Image:
+    return img.transform(img.size, Image.Transform.AFFINE, (1, 0, 0, 0, 1, value * img.size[1]))
+
+
+def _cutout(img: Image.Image, value: float) -> Image.Image:
+    size = value * img.size[0]
+    x0 = int(max(0, np.random.uniform(img.size[0]) - size / 2))
+    y0 = int(max(0, np.random.uniform(img.size[1]) - size / 2))
+    result = img.copy()
+    ImageDraw.Draw(result).rectangle((x0, y0, min(img.size[0], x0 + size), min(img.size[1], y0 + size)), fill=(125, 123, 114))
+    return result
+
+
+class PaperRandAugment:
+    def __init__(self, n: int = 2):
+        self.n = n
+        self.operations = [
+            (_autocontrast, 0, 1), (_brightness, 0.05, 0.95), (_color, 0.05, 0.95),
+            (_contrast, 0.05, 0.95), (_equalize, 0, 1), (_identity, 0, 1),
+            (_posterize, 0, 1), (_rotate, -30, 30), (_sharpness, 0.05, 0.95),
+            (_shear_x, -0.3, 0.3), (_shear_y, -0.3, 0.3), (_solarize, 0, 256),
+            (_translate_x, -0.3, 0.3), (_translate_y, -0.3, 0.3),
+        ]
+
+    def __call__(self, img: Image.Image) -> Image.Image:
+        for operation, low, high in random.choices(self.operations, k=self.n):
+            img = operation(img, low + (high - low) * random.random())
+        return _cutout(img, random.random() * 0.5)
+
+
+def prepare_cifar100() -> None:
+    """Stage Kaggle's original CIFAR-100 Python files for torchvision.
+
+    CIFAR100 still verifies the official MD5 checksums after these links are made.
+    """
+    candidates = [KAGGLE_CIFAR_DIR]
+    input_root = Path("/kaggle/input")
+    if input_root.is_dir():
+        candidates.extend(path.parent for path in input_root.rglob("train"))
+    source_dir = next(
+        (path for path in candidates if all((path / name).is_file() for name in ("train", "test", "meta"))),
+        None,
+    )
+    if source_dir is None:
+        raise RuntimeError(
+            "Attached CIFAR-100 files train/test/meta were not found under /kaggle/input. "
+            "Refusing to use the slow external download."
+        )
+
+    target_dir = DATA_DIR / torchvision.datasets.CIFAR100.base_folder
+    target_dir.mkdir(parents=True, exist_ok=True)
+    for name in ("train", "test", "meta"):
+        source = source_dir / name
+        target = target_dir / name
+        if not source.is_file():
+            raise FileNotFoundError(f"Required Kaggle CIFAR-100 file is missing: {source}")
+        if not target.exists():
+            target.symlink_to(source)
+    print(f"Using checksum-verified CIFAR-100 from {source_dir}")
+
+
+def make_loaders() -> tuple[DataLoader, DataLoader]:
+    prepare_cifar100()
+    normalize = transforms.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761))
+    weak = transforms.Compose([
+        transforms.RandomCrop(32, padding=4), transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(), normalize,
+    ])
+    strong = transforms.Compose([
+        transforms.RandomCrop(32, padding=4), transforms.RandomHorizontalFlip(),
+        PaperRandAugment(2), transforms.ToTensor(), normalize,
+    ])
+    test_transform = transforms.Compose([transforms.ToTensor(), normalize])
+    weak_set = torchvision.datasets.CIFAR100(DATA_DIR, train=True, download=False, transform=weak)
+    strong_set = torchvision.datasets.CIFAR100(DATA_DIR, train=True, download=False, transform=strong)
+    test_set = torchvision.datasets.CIFAR100(DATA_DIR, train=False, download=False, transform=test_transform)
+    generator = torch.Generator().manual_seed(CFG.seed)
+    train_loader = DataLoader(
+        ConcatDataset([weak_set, strong_set]), batch_size=CFG.batch_size, shuffle=True,
+        num_workers=CFG.num_workers, pin_memory=True, persistent_workers=CFG.num_workers > 0,
+        worker_init_fn=seed_worker, generator=generator,
+    )
+    test_loader = DataLoader(
+        test_set, batch_size=CFG.batch_size, shuffle=False, num_workers=CFG.num_workers,
+        pin_memory=True, persistent_workers=CFG.num_workers > 0, worker_init_fn=seed_worker,
+    )
+    return train_loader, test_loader
+
+# %% [markdown]
+# ## Streamlined Knowledge Distillation loss
+#
+# `paper_skd_loss` deliberately matches `Distiller/SKD.py`. In particular, the
+# repository first reduces KD/SKD to scalars and then multiplies those scalars by
+# the median masks. Keeping that behavior is important for an implementation-level
+# reproduction of the reported result.
+
+# %%
+def kd_loss(student_logits: torch.Tensor, teacher_logits: torch.Tensor, temperature: float) -> torch.Tensor:
+    student_log_prob = F.log_softmax(student_logits / temperature, dim=1)
+    teacher_prob = F.softmax(teacher_logits / temperature, dim=1)
+    return F.kl_div(student_log_prob, teacher_prob, reduction="none").sum(1).mean() * temperature**2
+
+
+def paper_skd_loss(student_logits: torch.Tensor, teacher_logits: torch.Tensor, tik: float) -> torch.Tensor:
+    num_classes = student_logits.size(1)
+    student_logits = F.normalize(student_logits, p=2, dim=1)
+    teacher_logits = F.normalize(teacher_logits, p=2, dim=1)
+    difference = (student_logits @ student_logits.T - teacher_logits @ teacher_logits.T) / num_classes
+    covariance = torch.cov(difference.T) + tik * torch.eye(difference.size(1), device=difference.device)
+    covariance_inv = torch.cholesky_inverse(torch.linalg.cholesky(covariance))
+    distances = torch.einsum("bi,ij,bj->b", difference, covariance_inv, difference)
+    return torch.sqrt(distances).mean()
+
+
+def distillation_losses(student_logits: torch.Tensor, teacher_logits: torch.Tensor, labels: torch.Tensor) -> dict[str, torch.Tensor]:
+    teacher_probability = F.softmax(teacher_logits.detach(), dim=1)
+    confidence = teacher_probability.max(dim=1).values.detach()
+    confidence_threshold = np.percentile(confidence.cpu().numpy().flatten(), 50)
+    confidence_mask = confidence.le(confidence_threshold)
+    class_confidence = teacher_probability.sum(dim=0).detach()
+    class_threshold = np.percentile(class_confidence.cpu().numpy().flatten(), 50)
+    class_mask = class_confidence.le(class_threshold)
+    return {
+        "ce": CFG.ce_weight * F.cross_entropy(student_logits, labels),
+        "kd": CFG.kd_weight * (kd_loss(student_logits, teacher_logits, CFG.temperature) * confidence_mask).mean(),
+        "bc": CFG.kd_weight * (paper_skd_loss(student_logits, teacher_logits, CFG.tik) * class_mask).mean(),
+    }
+
+
+@torch.inference_mode()
+def evaluate(model: nn.Module, loader: DataLoader, limit_batches: int = 0) -> dict[str, float]:
+    model.eval()
+    total_loss = total_top1 = total_top5 = total_examples = 0.0
+    for batch_index, (images, labels) in enumerate(loader):
+        if limit_batches and batch_index >= limit_batches:
+            break
+        images = images.to(DEVICE, non_blocking=True)
+        labels = labels.to(DEVICE, non_blocking=True)
+        logits = model(images)
+        batch_size = labels.size(0)
+        total_loss += F.cross_entropy(logits, labels).item() * batch_size
+        predictions = logits.topk(5, dim=1).indices
+        matches = predictions.eq(labels[:, None])
+        total_top1 += matches[:, :1].sum().item()
+        total_top5 += matches.sum().item()
+        total_examples += batch_size
+    return {
+        "loss": total_loss / total_examples,
+        "top1": 100.0 * total_top1 / total_examples,
+        "top5": 100.0 * total_top5 / total_examples,
+    }
+
+
+def train_one_epoch(student: nn.Module, teacher: nn.Module, loader: DataLoader, optimizer: torch.optim.Optimizer) -> dict[str, float]:
+    student.train()
+    teacher.eval()
+    totals = {"loss": 0.0, "ce": 0.0, "kd": 0.0, "bc": 0.0, "top1": 0.0, "examples": 0.0}
+    progress = tqdm(loader, leave=False)
+    for batch_index, (images, labels) in enumerate(progress):
+        if CFG.limit_train_batches and batch_index >= CFG.limit_train_batches:
+            break
+        images = images.to(DEVICE, non_blocking=True)
+        labels = labels.to(DEVICE, non_blocking=True)
+        with torch.no_grad():
+            teacher_logits = teacher(images)
+        student_logits = student(images)
+        losses = distillation_losses(student_logits, teacher_logits, labels)
+        loss = sum(losses.values())
+        optimizer.zero_grad(set_to_none=True)
+        loss.backward()
+        optimizer.step()
+
+        batch_size = labels.size(0)
+        totals["loss"] += loss.item() * batch_size
+        for name, value in losses.items():
+            totals[name] += value.item() * batch_size
+        totals["top1"] += student_logits.argmax(1).eq(labels).sum().item()
+        totals["examples"] += batch_size
+        progress.set_postfix(loss=f"{loss.item():.3f}")
+
+    examples = totals.pop("examples")
+    return {name: (100.0 * value / examples if name == "top1" else value / examples) for name, value in totals.items()}
+
+# %% [markdown]
+# ## Download and verify the released teacher
+
+# %%
+TEACHER_URL = "https://raw.githubusercontent.com/HyunJunSik/StreamLined/main/CIFAR-100/Model_Pth/best_model_weights_resnet56.pth"
+TEACHER_SHA256 = "2c8c5778c296ebf2bc3b226b5a2e5d4c93345c38676e48bb6e865206cc31d954"
+
+
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def obtain_teacher_checkpoint() -> Path:
+    candidates = [
+        Path("/kaggle/input/streamlined-kd-cifar100-assets/best_model_weights_resnet56.pth"),
+        Path.cwd() / "CIFAR-100" / "Model_Pth" / "best_model_weights_resnet56.pth",
+        Path.cwd().parent / "CIFAR-100" / "Model_Pth" / "best_model_weights_resnet56.pth",
+        WORK_DIR / "best_model_weights_resnet56.pth",
+    ]
+    for candidate in candidates:
+        if candidate.exists() and sha256(candidate) == TEACHER_SHA256:
+            return candidate
+    target = WORK_DIR / "best_model_weights_resnet56.pth"
+    print("Downloading released ResNet56 teacher...")
+    urllib.request.urlretrieve(TEACHER_URL, target)
+    actual_hash = sha256(target)
+    if actual_hash != TEACHER_SHA256:
+        raise RuntimeError(f"Teacher checkpoint checksum mismatch: {actual_hash}")
+    return target
+
+
+def load_state_dict(path: Path) -> dict[str, torch.Tensor]:
+    try:
+        state = torch.load(path, map_location="cpu", weights_only=True)
+    except TypeError:
+        state = torch.load(path, map_location="cpu")
+    if isinstance(state, dict) and "state_dict" in state:
+        state = state["state_dict"]
+    if any(key.startswith("module.") for key in state):
+        state = {key.removeprefix("module."): value for key, value in state.items()}
+    return state
+
+# %% [markdown]
+# ## Run the 240-epoch experiment
+
+# %%
+def run_experiment() -> dict[str, object]:
+    train_loader, test_loader = make_loaders()
+    teacher = resnet56().to(DEVICE)
+    teacher.load_state_dict(load_state_dict(obtain_teacher_checkpoint()), strict=True)
+    teacher.requires_grad_(False).eval()
+    teacher_metrics = evaluate(teacher, test_loader, CFG.limit_eval_batches)
+    print(f"Teacher ResNet56: top1={teacher_metrics['top1']:.2f}, top5={teacher_metrics['top5']:.2f}")
+
+    # Re-seed after teacher validation so student initialization is independent of loader iteration.
+    seed_everything(CFG.seed)
+    student = resnet20().to(DEVICE)
+    optimizer = torch.optim.SGD(
+        student.parameters(), lr=CFG.learning_rate, momentum=CFG.momentum, weight_decay=CFG.weight_decay
+    )
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=list(CFG.lr_milestones), gamma=0.1)
+    best_top1 = float("-inf")
+    best_state = None
+    history: list[dict[str, float | int]] = []
+    started_at = time.time()
+
+    for epoch in range(CFG.epochs):
+        train_metrics = train_one_epoch(student, teacher, train_loader, optimizer)
+        test_metrics = evaluate(student, test_loader, CFG.limit_eval_batches)
+        row = {
+            "epoch": epoch + 1,
+            "lr": optimizer.param_groups[0]["lr"],
+            **{f"train_{key}": value for key, value in train_metrics.items()},
+            **{f"test_{key}": value for key, value in test_metrics.items()},
+        }
+        history.append(row)
+        print(
+            f"epoch {epoch + 1:03d}/{CFG.epochs} | lr={row['lr']:.4g} | "
+            f"train top1={row['train_top1']:.2f} | test top1={row['test_top1']:.2f} | "
+            f"best={max(best_top1, row['test_top1']):.2f}"
+        )
+        if test_metrics["top1"] > best_top1:
+            best_top1 = test_metrics["top1"]
+            best_state = copy.deepcopy({key: value.detach().cpu() for key, value in student.state_dict().items()})
+            torch.save(best_state, WORK_DIR / "resnet20_skd_best.pth")
+        torch.save(
+            {"epoch": epoch + 1, "student": student.state_dict(), "optimizer": optimizer.state_dict(), "history": history},
+            WORK_DIR / "last_checkpoint.pt",
+        )
+        scheduler.step()
+
+    if best_state is None:
+        raise RuntimeError("Training did not produce a checkpoint")
+    student.load_state_dict(best_state)
+    final_metrics = evaluate(student, test_loader, CFG.limit_eval_batches)
+    elapsed_seconds = time.time() - started_at
+
+    history_path = WORK_DIR / "history.csv"
+    with history_path.open("w", newline="") as stream:
+        writer = csv.DictWriter(stream, fieldnames=list(history[0]))
+        writer.writeheader()
+        writer.writerows(history)
+    summary: dict[str, object] = {
+        "config": asdict(CFG),
+        "teacher_metrics": teacher_metrics,
+        "best_student_metrics": final_metrics,
+        "best_student_top1_during_training": best_top1,
+        "elapsed_seconds": elapsed_seconds,
+        "artifacts": ["resnet20_skd_best.pth", "last_checkpoint.pt", "history.csv", "summary.json"],
+    }
+    with (WORK_DIR / "summary.json").open("w") as stream:
+        json.dump(summary, stream, indent=2)
+    print(json.dumps(summary, indent=2))
+    return summary
+
+
+if __name__ == "__main__":
+    SUMMARY = run_experiment()

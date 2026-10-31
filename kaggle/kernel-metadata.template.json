@@ -1,0 +1,15 @@
+{
+  "id": "KAGGLE_USERNAME/streamlined-kd-resnet56-resnet20-cifar100",
+  "title": "Streamlined KD - ResNet56 to ResNet20 on CIFAR-100",
+  "code_file": "streamlined_kd_cifar100.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "machine_shape": "NvidiaTeslaT4",
+  "dataset_sources": [],
+  "competition_sources": [],
+  "kernel_sources": [],
+  "model_sources": []
+}
