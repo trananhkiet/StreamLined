@@ -43,8 +43,11 @@ class Config:
     lr_milestones: tuple[int, ...] = (150, 180, 210)
     temperature: float = 4.0
     tik: float = 1e-1
-    ce_weight: float = 0.1
-    kd_weight: float = 0.9
+    ce_weight: float = float(os.getenv("CE_WEIGHT", "0.5"))
+    kd_weight: float = float(os.getenv("KD_WEIGHT", "0.5"))
+    # "scalar": repo/run-B behavior, mean(KL) * mask  (mask has no real selection effect)
+    # "per_sample": experiment A1, mean(mask_i * KL_i)
+    kd_mask_mode: str = os.getenv("KD_MASK_MODE", "scalar")
     # Set to a positive integer only for a quick pipeline smoke test.
     limit_train_batches: int = int(os.getenv("LIMIT_TRAIN_BATCHES", "0"))
     limit_eval_batches: int = int(os.getenv("LIMIT_EVAL_BATCHES", "0"))
@@ -315,10 +318,11 @@ def make_loaders() -> tuple[DataLoader, DataLoader]:
 # reproduction of the reported result.
 
 # %%
-def kd_loss(student_logits: torch.Tensor, teacher_logits: torch.Tensor, temperature: float) -> torch.Tensor:
+def kd_loss(student_logits: torch.Tensor, teacher_logits: torch.Tensor, temperature: float, per_sample: bool = False) -> torch.Tensor:
     student_log_prob = F.log_softmax(student_logits / temperature, dim=1)
     teacher_prob = F.softmax(teacher_logits / temperature, dim=1)
-    return F.kl_div(student_log_prob, teacher_prob, reduction="none").sum(1).mean() * temperature**2
+    per = F.kl_div(student_log_prob, teacher_prob, reduction="none").sum(1) * temperature**2
+    return per if per_sample else per.mean()
 
 
 def paper_skd_loss(student_logits: torch.Tensor, teacher_logits: torch.Tensor, tik: float) -> torch.Tensor:
@@ -340,9 +344,13 @@ def distillation_losses(student_logits: torch.Tensor, teacher_logits: torch.Tens
     class_confidence = teacher_probability.sum(dim=0).detach()
     class_threshold = np.percentile(class_confidence.cpu().numpy().flatten(), 50)
     class_mask = class_confidence.le(class_threshold)
+    if CFG.kd_mask_mode == "per_sample":
+        kd_term = (kd_loss(student_logits, teacher_logits, CFG.temperature, per_sample=True) * confidence_mask).mean()
+    else:
+        kd_term = (kd_loss(student_logits, teacher_logits, CFG.temperature) * confidence_mask).mean()
     return {
         "ce": CFG.ce_weight * F.cross_entropy(student_logits, labels),
-        "kd": CFG.kd_weight * (kd_loss(student_logits, teacher_logits, CFG.temperature) * confidence_mask).mean(),
+        "kd": CFG.kd_weight * kd_term,
         "bc": CFG.kd_weight * (paper_skd_loss(student_logits, teacher_logits, CFG.tik) * class_mask).mean(),
     }
 

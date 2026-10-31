@@ -92,8 +92,7 @@ momentum buffer để resume. So với cùng loss dùng SGD; log cosine giữa h
 gradient, accuracy và thời gian/epoch. Đây là hướng sau cùng vì cần sửa trainer
 và tăng chi phí backward, trong khi B/C chỉ cần thay loss.
 
-Ưu tiên **B trước** vì ít sửa code và có cơ sở từ paper; sau đó A, C, D theo
-ngân sách GPU. Sweep hệ số/nhiệt độ là đề xuất của dự án, không phải cấu hình
+Thứ tự chạy do người dùng chỉ định (duy nhất): **A1 → A2 → A3 → B → C → D**. Sweep hệ số/nhiệt độ là đề xuất của dự án, không phải cấu hình
 đã được paper xác nhận tối ưu cho SKD. Mỗi run ghi vào `experiments/*.md`:
 `giả thuyết → thay đổi → config → kết quả → bài học → bước tiếp`.
 Chọn hyperparameter bằng validation tách từ train, giữ cùng split cho các ứng
