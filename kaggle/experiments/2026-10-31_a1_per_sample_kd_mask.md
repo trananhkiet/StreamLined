@@ -13,4 +13,4 @@ Config khác giữ như B: CE/KD 0.5/0.5, T=4, tik 0.1, seed 2021, 240 epoch, SG
 Unit test CPU: loss hữu hạn, gradient hữu hạn (ce 2.63, kd 1.17, bc 0.009 trên dữ liệu ngẫu nhiên). Smoke test full pipeline không chạy được ở cloud session (không có CIFAR-100 cục bộ); code path thay đổi chỉ nằm trong `distillation_losses`.
 
 ## Trạng thái
-Xem EXPERIMENT_HANDOFF.md (mục "Trạng thái run hiện tại").
+v5 submit qua REST push lúc ~2026-11-01 03:50 UTC, dataset attach đã xác minh, đang RUNNING. Xem EXPERIMENT_HANDOFF.md (mục "A1 ĐÃ SUBMIT THÀNH CÔNG").

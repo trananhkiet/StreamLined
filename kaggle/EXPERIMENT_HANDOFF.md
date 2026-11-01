@@ -161,3 +161,16 @@ Vì vậy không chạy được REST push (`kaggle kernels push`) để attach 
 
 **Cách resume:** vào cài đặt environment (menu cloud environment ở thanh tiêu đề session -> Edit), mở Network access rộng hơn hoặc thêm
 `www.kaggle.com` (và `kaggle.com`) vào Allowed domains. Sau đó trigger lại: cài `pip install kaggle`, đặt KAGGLE_USERNAME/KAGGLE_KEY, push notebook A1 theo mục BLOCKER ở trên (dataset_sources=["fedesoriano/cifar100"], T4, docker image như run B).
+
+### A1 ĐÃ SUBMIT THÀNH CÔNG — trigger v5 thủ công 2026-11-01 (~03:50 UTC)
+
+Blocker mạng đã được gỡ (đã mở `www.kaggle.com`, `api.kaggle.com`). Lưu ý cho lần sau: `kaggle` CLI 2.x đọc token dạng `KGAT_...`
+qua biến `KAGGLE_API_TOKEN`, **không** qua `KAGGLE_KEY`; dùng `export KAGGLE_API_TOKEN="$KAGGLE_KEY"` trước khi gọi CLI (`pip install kaggle`).
+
+- Experiment: **A1** (per-sample KD mask, `KD_MASK_MODE=per_sample`), CE/KD 0.5/0.5, T=4, tik 0.1, seed 2021, 240 epoch, T4. Đối chứng = run B (70.26% best / 70.04% final).
+- Code: `kaggle/experiments/a1_per_sample_kd_mask.ipynb` (inline), Git commit `cb59dae`. Diff so với notebook run B chỉ nằm ở `kd_loss` + `distillation_losses` (yếu tố A1).
+- Cách push (REST, đúng README): metadata từ run B (`dataset_sources=["fedesoriano/cifar100"]`, docker image như run B, `machine_shape=NvidiaTeslaT4`, internet bật), `kaggle kernels push -p <dir> --accelerator NvidiaTeslaT4`.
+- Notebook: https://www.kaggle.com/code/trananhkiet/streamlined-kd-cifar100-a1-per-sample-mask — **version 5**, submit lúc ~2026-11-01 03:50 UTC.
+- Đã xác minh: `kaggle kernels pull -m` của version mới liệt kê `fedesoriano/cifar100` trong `dataset_sources`; trạng thái RUNNING sau >3 phút (v2/v3/v4 qua MCP đều ERROR trong ~2 phút vì mất dataset). Quota GPU trước khi chạy: 0.03h/30h.
+- Việc cần làm ở lần trigger tiếp theo: **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước** (`kaggle kernels status`, hoặc Kaggle MCP). Nếu COMPLETE: tải `summary.json`/`history.csv`/checkpoint, ghi kết quả vào `experiments/2026-10-31_a1_per_sample_kd_mask.md`, so sánh với B, rồi chuyển sang A2. Nếu ERROR: đọc log, retry 1/3.
+- Mục "BLOCKER (2026-10-31)" và các cập nhật trước đó trong file này đã **hết hiệu lực** (đã giải quyết bằng REST push).
