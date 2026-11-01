@@ -129,3 +129,10 @@ Code đã commit `03ba69c` (default `KD_MASK_MODE=scalar` = hành vi run B).
   nội dung notebook = file `kaggle/experiments/a1_per_sample_kd_mask.ipynb` (inline) hoặc loader pin commit
   `03ba69c` đã dùng ở v2 (env KD_MASK_MODE=per_sample, CE/KD 0.5/0.5). Sau đó lần trigger kế tiếp kiểm tra run.
 - Chưa có kết quả nào của A1; giả thuyết chưa được kiểm chứng.
+
+### Cập nhật trigger 2026-11-01
+
+Blocker vẫn nguyên: kernel A1 ở trạng thái ERROR (v3), shell vẫn không có Kaggle CLI/credentials
+(`~/.kaggle` không tồn tại), nên không có đường REST. Không submit lại bằng MCP vì đã xác nhận MCP bỏ
+dataset attachment ở cả hai trường (v2, v3). Không tốn thêm GPU. Cách resume như mục BLOCKER ở trên:
+cần một môi trường có credentials để push notebook A1 kèm `fedesoriano/cifar100`.
