@@ -24,5 +24,25 @@ Unit test CPU (dữ liệu ngẫu nhiên, B=64, C=100): loss và gradient hữu 
 chế độ `low` giữ nguyên hành vi A1; chế độ `high` chọn đúng nửa mẫu teacher tự tin (teacher top-1 trên nhóm chọn cao hơn hẳn nhóm còn lại; fraction 0.5).
 Diff notebook A2 so với A1 chỉ gồm đổi mask + logging. Smoke test full pipeline không chạy được ở cloud session (không có CIFAR-100 cục bộ).
 
-## Trạng thái
-Submit 2026-11-01 ~12:10 UTC: notebook `streamlined-kd-cifar100-a2-per-sample-high-conf` version 1, dataset attach đã xác minh, RUNNING (>2,5 phút). Chưa có kết quả. Xem EXPERIMENT_HANDOFF.md (mục "TRẠNG THÁI HIỆN TẠI").
+## Kết quả (đã xác minh từ log Kaggle, notebook version 1, 2026-11-02)
+Notebook: https://www.kaggle.com/code/trananhkiet/streamlined-kd-cifar100-a2-per-sample-high-conf (v1, T4, dataset attach OK).
+
+| | Run B | A1 (low-conf) | **A2 (high-conf)** | A2 − A1 | A2 − B |
+|---|---:|---:|---:|---:|---:|
+| Best test top-1 | 70.26% (ep 235) | 69.28% (ep 223) | **69.76%** (ep 234) | +0.48 | **−0.50** |
+| Final test top-1 (ep 240) | 70.04% | 68.97% | **69.57%** | +0.60 | **−0.47** |
+| Best test top-5 | 92.32% | 92.25% | 92.04% | −0.21 | −0.28 |
+| Best test loss | 1.0730 | 1.0563 | 1.1067 | +0.050 | +0.034 |
+| Runtime | — | 13.160 s | 14.173 s (~3,94 giờ) | | |
+
+Teacher 71.59% / 92.51% (khớp). Train top-1 cuối 66.00%.
+
+## Bài học
+- Giả thuyết được ủng hộ **một phần**: distill từ mẫu teacher tự tin (A2) tốt hơn từ mẫu kém tự tin (A1) khoảng +0,5 đến +0,6 điểm top-1.
+- Nhưng **cả hai biến thể per-sample đều kém run B** (scalar, mask thực tế không chọn mẫu): A2 vẫn −0,5. Vậy việc ép KD chỉ lấy một nửa mẫu (theo thứ tự nào cũng vậy) đang làm mất tín hiệu hữu ích; A1/A2 không phải hướng cải thiện so với B.
+- A2 có top-5 và test loss kém B, còn A1 có test loss tốt hơn B nhưng top-1 kém hơn: các chỉ số không cùng chiều, nên chưa nên đọc một chỉ số riêng lẻ.
+- Cảnh báo: 1 seed (2021); phương sai giữa seed chưa đo, chênh ~0,5 điểm chưa đủ để kết luận mạnh.
+- Không lấy được `history.csv` (host `www.kaggleusercontent.com` bị chặn trong environment) nên chưa có số `teacher_top1_selected/rest` theo epoch; cần mở host này hoặc tải file thủ công để phân tích phần này.
+
+## Bước tiếp
+Theo luật "chỉ kết hợp hướng đã cải thiện độc lập" và vì A1/A2 chưa vượt B, A3 lấy **run B làm nền**: [2026-11-02_a3_lambda_bc_sweep.md](2026-11-02_a3_lambda_bc_sweep.md).

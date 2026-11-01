@@ -51,6 +51,15 @@ class Config:
     # Which samples the confidence mask keeps: "low" (repo/A1: teacher confidence <= median) or
     # "high" (experiment A2: teacher confidence >= median). Only changes the KD mask, not the BC mask.
     kd_mask_select: str = os.getenv("KD_MASK_SELECT", "low")
+    # Weight of the SKD/BC (Gram-matrix) term. Negative (default) = share kd_weight, i.e. runs A/B/A1/A2 behavior.
+    # Experiment A3 sweeps this independently of kd_weight (0 / 0.5 / 2.0).
+    lambda_bc: float = float(os.getenv("LAMBDA_BC", "-1"))
+    # Every N batches log the L2 norm of d(loss term)/d(last-layer weight) for CE/KD/BC (0 disables).
+    grad_log_every: int = int(os.getenv("GRAD_LOG_EVERY", "100"))
+
+    @property
+    def bc_weight(self) -> float:
+        return self.kd_weight if self.lambda_bc < 0 else self.lambda_bc
     # Set to a positive integer only for a quick pipeline smoke test.
     limit_train_batches: int = int(os.getenv("LIMIT_TRAIN_BATCHES", "0"))
     limit_eval_batches: int = int(os.getenv("LIMIT_EVAL_BATCHES", "0"))
@@ -355,7 +364,10 @@ def pop_mask_stats() -> dict[str, float]:
     }
 
 
-def distillation_losses(student_logits: torch.Tensor, teacher_logits: torch.Tensor, labels: torch.Tensor) -> dict[str, torch.Tensor]:
+def raw_loss_terms(
+    student_logits: torch.Tensor, teacher_logits: torch.Tensor, labels: torch.Tensor, track_stats: bool = True
+) -> dict[str, torch.Tensor]:
+    """Unweighted CE / KD / BC terms (KD and BC already include their masks)."""
     teacher_probability = F.softmax(teacher_logits.detach(), dim=1)
     confidence = teacher_probability.max(dim=1).values.detach()
     confidence_threshold = np.percentile(confidence.cpu().numpy().flatten(), 50)
@@ -363,11 +375,12 @@ def distillation_losses(student_logits: torch.Tensor, teacher_logits: torch.Tens
         confidence_mask = confidence.ge(confidence_threshold)
     else:
         confidence_mask = confidence.le(confidence_threshold)
-    teacher_correct = teacher_logits.detach().argmax(dim=1).eq(labels)
-    MASK_STATS["selected"] += confidence_mask.sum().item()
-    MASK_STATS["selected_correct"] += (teacher_correct & confidence_mask).sum().item()
-    MASK_STATS["rest"] += (~confidence_mask).sum().item()
-    MASK_STATS["rest_correct"] += (teacher_correct & ~confidence_mask).sum().item()
+    if track_stats:
+        teacher_correct = teacher_logits.detach().argmax(dim=1).eq(labels)
+        MASK_STATS["selected"] += confidence_mask.sum().item()
+        MASK_STATS["selected_correct"] += (teacher_correct & confidence_mask).sum().item()
+        MASK_STATS["rest"] += (~confidence_mask).sum().item()
+        MASK_STATS["rest_correct"] += (teacher_correct & ~confidence_mask).sum().item()
     class_confidence = teacher_probability.sum(dim=0).detach()
     class_threshold = np.percentile(class_confidence.cpu().numpy().flatten(), 50)
     class_mask = class_confidence.le(class_threshold)
@@ -376,10 +389,41 @@ def distillation_losses(student_logits: torch.Tensor, teacher_logits: torch.Tens
     else:
         kd_term = (kd_loss(student_logits, teacher_logits, CFG.temperature) * confidence_mask).mean()
     return {
-        "ce": CFG.ce_weight * F.cross_entropy(student_logits, labels),
-        "kd": CFG.kd_weight * kd_term,
-        "bc": CFG.kd_weight * (paper_skd_loss(student_logits, teacher_logits, CFG.tik) * class_mask).mean(),
+        "ce": F.cross_entropy(student_logits, labels),
+        "kd": kd_term,
+        "bc": (paper_skd_loss(student_logits, teacher_logits, CFG.tik) * class_mask).mean(),
     }
+
+
+def distillation_losses(student_logits: torch.Tensor, teacher_logits: torch.Tensor, labels: torch.Tensor) -> dict[str, torch.Tensor]:
+    raw = raw_loss_terms(student_logits, teacher_logits, labels)
+    return {
+        "ce": CFG.ce_weight * raw["ce"],
+        "kd": CFG.kd_weight * raw["kd"],
+        "bc": CFG.bc_weight * raw["bc"],
+    }
+
+
+GRAD_STATS = {"ce": 0.0, "kd": 0.0, "bc": 0.0, "count": 0.0}
+
+
+def probe_last_layer_grads(
+    student: nn.Module, student_logits: torch.Tensor, teacher_logits: torch.Tensor, labels: torch.Tensor
+) -> None:
+    """Accumulate ||d term / d fc.weight||_2 of each UNWEIGHTED term (does not touch the real backward pass)."""
+    raw = raw_loss_terms(student_logits, teacher_logits, labels, track_stats=False)
+    for name, term in raw.items():
+        grad = torch.autograd.grad(term, student.fc.weight, retain_graph=True, allow_unused=True)[0]
+        GRAD_STATS[name] += 0.0 if grad is None else grad.norm().item()
+    GRAD_STATS["count"] += 1.0
+
+
+def pop_grad_stats() -> dict[str, float]:
+    count = max(GRAD_STATS["count"], 1.0)
+    stats = {f"gradnorm_{name}": GRAD_STATS[name] / count for name in ("ce", "kd", "bc")}
+    for key in GRAD_STATS:
+        GRAD_STATS[key] = 0.0
+    return stats
 
 
 @torch.inference_mode()
@@ -420,6 +464,8 @@ def train_one_epoch(student: nn.Module, teacher: nn.Module, loader: DataLoader, 
             teacher_logits = teacher(images)
         student_logits = student(images)
         losses = distillation_losses(student_logits, teacher_logits, labels)
+        if CFG.grad_log_every and batch_index % CFG.grad_log_every == 0:
+            probe_last_layer_grads(student, student_logits, teacher_logits, labels)
         loss = sum(losses.values())
         optimizer.zero_grad(set_to_none=True)
         loss.backward()
@@ -514,6 +560,7 @@ def run_experiment() -> dict[str, object]:
             "lr": optimizer.param_groups[0]["lr"],
             **{f"train_{key}": value for key, value in train_metrics.items()},
             **pop_mask_stats(),
+            **pop_grad_stats(),
             **{f"test_{key}": value for key, value in test_metrics.items()},
         }
         history.append(row)
