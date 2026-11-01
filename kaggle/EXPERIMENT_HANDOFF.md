@@ -148,3 +148,16 @@ Thử lại một lần qua MCP với cả `datasetDataSources` và `datasetData
 data sources nên không xác minh được attachment, và hành vi trùng v2/v3 (lỗi do thiếu dataset). Không tính retry;
 không tốn GPU đáng kể. Kết luận: MCP vẫn không attach được dataset; cần push REST từ môi trường có credentials
 (cách resume như mục BLOCKER ở trên). Không thử thêm bằng MCP.
+
+### Cập nhật trigger v5 thủ công 2026-11-01 (03:43 UTC, env mới có KAGGLE_*)
+
+Kiểm tra trước workflow: `KAGGLE_USERNAME` CÓ, `KAGGLE_KEY` CÓ, `~/.kaggle/kaggle.json` KHÔNG; `kaggle` CLI chưa cài.
+Repo clone OK (HEAD `cb59dae`, `main`); `git fetch` OK, `git push --dry-run` báo "Everything up-to-date" (chưa kiểm chứng quyền ghi bằng push thật).
+Kaggle MCP xác thực được; trạng thái notebook A1 (`streamlined-kd-cifar100-a1-per-sample-mask`) vẫn ERROR (v4), không có run QUEUED/RUNNING.
+
+**Blocker mới (thay cho blocker thiếu credentials):** shell có credentials nhưng `www.kaggle.com` bị network policy của environment chặn
+(`curl https://www.kaggle.com/api/v1/` -> `CONNECT tunnel failed, response 403`; proxy log: `connect_rejected`, host `www.kaggle.com:443`).
+Vì vậy không chạy được REST push (`kaggle kernels push`) để attach `fedesoriano/cifar100`. Không submit lại bằng MCP vì MCP đã xác nhận bỏ dataset attachment (v2/v3/v4). Không tốn GPU, không tính retry.
+
+**Cách resume:** vào cài đặt environment (menu cloud environment ở thanh tiêu đề session -> Edit), mở Network access rộng hơn hoặc thêm
+`www.kaggle.com` (và `kaggle.com`) vào Allowed domains. Sau đó trigger lại: cài `pip install kaggle`, đặt KAGGLE_USERNAME/KAGGLE_KEY, push notebook A1 theo mục BLOCKER ở trên (dataset_sources=["fedesoriano/cifar100"], T4, docker image như run B).
