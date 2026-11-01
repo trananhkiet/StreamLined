@@ -136,3 +136,15 @@ Blocker vẫn nguyên: kernel A1 ở trạng thái ERROR (v3), shell vẫn khôn
 (`~/.kaggle` không tồn tại), nên không có đường REST. Không submit lại bằng MCP vì đã xác nhận MCP bỏ
 dataset attachment ở cả hai trường (v2, v3). Không tốn thêm GPU. Cách resume như mục BLOCKER ở trên:
 cần một môi trường có credentials để push notebook A1 kèm `fedesoriano/cifar100`.
+
+### Cập nhật trigger thủ công 2026-11-01 (kiểm tra môi trường + thử lại)
+
+Kiểm tra trước workflow: KAGGLE_USERNAME KHÔNG, KAGGLE_KEY KHÔNG, `~/.kaggle/kaggle.json` KHÔNG;
+`curl https://www.kaggle.com/api/v1/` = 200; `kaggle` CLI đã cài nhưng không có credentials (không dùng được).
+Kaggle MCP đã xác thực: GPU quota dùng 69.9s/108000s (refresh 2026-11-07); đọc được notebook A1 và dataset
+`fedesoriano/cifar100` v1.
+Thử lại một lần qua MCP với cả `datasetDataSources` và `datasetDataSourcesSetter` + đủ cờ `has*`: tạo v4
+(SaveAndRunAll, T4), RUNNING lúc đầu nhưng chuyển ERROR trong ~2 phút; `get_notebook_info` không hiển thị
+data sources nên không xác minh được attachment, và hành vi trùng v2/v3 (lỗi do thiếu dataset). Không tính retry;
+không tốn GPU đáng kể. Kết luận: MCP vẫn không attach được dataset; cần push REST từ môi trường có credentials
+(cách resume như mục BLOCKER ở trên). Không thử thêm bằng MCP.
