@@ -32,4 +32,4 @@ reset sau mỗi epoch, backward thật vẫn chạy. Mẫu: gradnorm CE 1.07, KD
 Smoke test full pipeline không chạy được ở cloud session (không có CIFAR-100 cục bộ).
 
 ## Trạng thái
-Xem EXPERIMENT_HANDOFF.md (mục "TRẠNG THÁI HIỆN TẠI").
+A3-bc0 submit 2026-11-01 ~20:08 UTC: notebook `streamlined-kd-cifar100-a3-lambda-bc0` version 1, dataset attach đã xác minh, RUNNING (>2 phút). Chưa có kết quả. A3-bc2 chờ sau. Xem EXPERIMENT_HANDOFF.md (mục "TRẠNG THÁI HIỆN TẠI").

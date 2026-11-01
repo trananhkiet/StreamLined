@@ -1,6 +1,6 @@
 # SKD experiment handoff
 
-Updated: 2026-11-01 12:10 UTC (trigger tự động v5).
+Updated: 2026-11-01 20:10 UTC (trigger tự động v5).
 
 ## Mục tiêu và trạng thái
 
@@ -14,6 +14,7 @@ Tikhonov `0.1`, chạy trên Kaggle T4.
 | A | 0.1/0.9 | 71.59% | 68.49% (epoch 235) | 68.16% |
 | B — tốt nhất | 0.5/0.5 | 71.59% | **70.26% (epoch 235)** | 70.04% |
 | A1 (per-sample KD mask, low-conf) | 0.5/0.5 | 71.59% | 69.28% (epoch 223) | 68.97% |
+| A2 (per-sample KD mask, high-conf) | 0.5/0.5 | 71.59% | 69.76% (epoch 234) | 69.57% |
 | Paper | — | 72.40% | 72.50% | — |
 
 Run B cải thiện `+1.77` điểm so với A nhưng còn thấp hơn paper `2.24` điểm.
@@ -177,7 +178,7 @@ qua biến `KAGGLE_API_TOKEN`, **không** qua `KAGGLE_KEY`; dùng `export KAGGLE
 - Mục "BLOCKER (2026-10-31)" và các cập nhật trước đó trong file này đã **hết hiệu lực** (đã giải quyết bằng REST push).
 
 
-## TRẠNG THÁI HIỆN TẠI (cập nhật 2026-11-01 12:10 UTC) — đọc mục này trước
+## (Lịch sử) Trạng thái 2026-11-01 12:10 UTC — đã được thay bằng mục TRẠNG THÁI HIỆN TẠI ở cuối file
 
 **A1 COMPLETE:** best 69.28% (epoch 223), final 68.97% (epoch 240), runtime ~3,66 giờ; thấp hơn run B −0,98 (best) / −1,07 (final). Chi tiết và bài học:
 [experiments/2026-10-31_a1_per_sample_kd_mask.md](experiments/2026-10-31_a1_per_sample_kd_mask.md). (Mới 1 seed, chưa kết luận mạnh.) Các mục BLOCKER/"A1 ĐÃ SUBMIT" phía trên đã hết hiệu lực.
@@ -195,3 +196,22 @@ qua biến `KAGGLE_API_TOKEN`, **không** qua `KAGGLE_KEY`; dùng `export KAGGLE
 - `kaggle kernels status` bị rate limit nếu gọi dồn; dùng MCP `get_notebook_session_status`.
 - PyTorch không có sẵn trong container; muốn unit test CPU phải `pip install torch` (PyPI hoạt động; index download.pytorch.org bị chặn).
 - Bốn file `.pth` báo modified giả (Git LFS): đã `git update-index --skip-worktree`, không commit chúng.
+
+
+## TRẠNG THÁI HIỆN TẠI (cập nhật 2026-11-01 20:10 UTC = 03:10 giờ Sài Gòn 2026-11-02) — đọc mục này trước
+
+**A2 COMPLETE:** best 69.76% (epoch 234), final 69.57% (epoch 240), top-5 92.04%, test loss 1.1067, runtime 14.173 s (~3,94 giờ).
+So với A1: +0,48 best / +0,60 final (high-conf tốt hơn low-conf). So với run B: **−0,50 best / −0,47 final** — cả A1 và A2 đều chưa vượt B. Chi tiết:
+[experiments/2026-11-01_a2_per_sample_high_confidence.md](experiments/2026-11-01_a2_per_sample_high_confidence.md). (1 seed.) Chưa lấy được `history.csv` (host `www.kaggleusercontent.com` bị chặn).
+
+**A3-bc0 ĐÃ SUBMIT (đang chạy):**
+- Cách hiểu đã chọn: A1/A2 chưa vượt B nên A3 lấy **run B làm nền** (KD mask scalar), chỉ tách `lambda_bc` khỏi `kd_weight`. Sweep lần lượt: **A3-bc0 (`LAMBDA_BC=0`)** → A3-bc2 (`LAMBDA_BC=2.0`); `lambda_bc=0.5` chính là run B (không chạy lại). Log: [experiments/2026-11-02_a3_lambda_bc_sweep.md](experiments/2026-11-02_a3_lambda_bc_sweep.md).
+- Code: Git commit `c2476b2` (`kaggle/streamlined_kd_cifar100.py`: thêm `LAMBDA_BC`, `GRAD_LOG_EVERY`, log `gradnorm_ce/kd/bc` ở `fc.weight` theo epoch; notebook `kaggle/experiments/a3_lambda_bc0.ipynb`). Loss mới giống hệt bit bản cũ ở mọi chế độ cũ (đã test CPU).
+- Notebook: https://www.kaggle.com/code/trananhkiet/streamlined-kd-cifar100-a3-lambda-bc0 — **version 1**, submit 2026-11-01 ~20:08 UTC, T4, dataset `fedesoriano/cifar100` đã xác minh bằng `kaggle kernels pull -m`, RUNNING sau >2 phút.
+- Quota GPU: đã dùng 7,64h trước khi submit A3-bc0; còn ~22,3h/30h (refresh 2026-11-07). Mỗi run ~3,7–3,9 giờ GPU.
+- Việc cần làm ở lần trigger tiếp theo: **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.** Dự kiến xong ~00:10 UTC. Nếu COMPLETE: lấy kết quả (MCP `list_notebook_session_output` trả cả log; CLI `kaggle kernels output` bị 403 ở `www.kaggleusercontent.com`), ghi vào file A3, so với B (70.26/70.04), rồi submit **A3-bc2**: build notebook từ `streamlined_kd_cifar100.py` với `LAMBDA_BC` default `2.0` (cùng cách build `a3_lambda_bc0.ipynb`: thay chuỗi `os.getenv("LAMBDA_BC", "-1")` bằng `"2.0"`, dùng `build_notebook.py` với SOURCE/TARGET đổi), slug `streamlined-kd-cifar100-a3-lambda-bc2`, cùng metadata như A3-bc0. Nếu ERROR: đọc log, retry 1/3.
+
+### Ghi chú vận hành bổ sung
+- Config `CFG` là frozen dataclass: khi unit test đổi giá trị dùng `object.__setattr__(CFG, name, value)`.
+- Unit test CPU cần `pip install torch torchvision tqdm pillow numpy` (PyPI chạy được). Test hồi quy mẫu: so `distillation_losses` của commit trước (git show) với bản mới, sai lệch phải bằng 0.
+- Lần chạy 20:04 UTC: trigger đã có cron nên không cần chuyển lịch; `kaggle kernels status` có thể bị rate limit, dùng MCP `get_notebook_session_status`.
