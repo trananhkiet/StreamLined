@@ -25,4 +25,4 @@ chế độ `low` giữ nguyên hành vi A1; chế độ `high` chọn đúng n�
 Diff notebook A2 so với A1 chỉ gồm đổi mask + logging. Smoke test full pipeline không chạy được ở cloud session (không có CIFAR-100 cục bộ).
 
 ## Trạng thái
-Xem EXPERIMENT_HANDOFF.md (mục "A2").
+Submit 2026-11-01 ~12:10 UTC: notebook `streamlined-kd-cifar100-a2-per-sample-high-conf` version 1, dataset attach đã xác minh, RUNNING (>2,5 phút). Chưa có kết quả. Xem EXPERIMENT_HANDOFF.md (mục "TRẠNG THÁI HIỆN TẠI").

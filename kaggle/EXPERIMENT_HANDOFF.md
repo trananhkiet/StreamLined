@@ -1,6 +1,6 @@
 # SKD experiment handoff
 
-Updated: 2026-10-31 (trigger tự động).
+Updated: 2026-11-01 12:10 UTC (trigger tự động v5).
 
 ## Mục tiêu và trạng thái
 
@@ -13,6 +13,7 @@ Tikhonov `0.1`, chạy trên Kaggle T4.
 |---|---:|---:|---:|---:|
 | A | 0.1/0.9 | 71.59% | 68.49% (epoch 235) | 68.16% |
 | B — tốt nhất | 0.5/0.5 | 71.59% | **70.26% (epoch 235)** | 70.04% |
+| A1 (per-sample KD mask, low-conf) | 0.5/0.5 | 71.59% | 69.28% (epoch 223) | 68.97% |
 | Paper | — | 72.40% | 72.50% | — |
 
 Run B cải thiện `+1.77` điểm so với A nhưng còn thấp hơn paper `2.24` điểm.
@@ -174,3 +175,23 @@ qua biến `KAGGLE_API_TOKEN`, **không** qua `KAGGLE_KEY`; dùng `export KAGGLE
 - Đã xác minh: `kaggle kernels pull -m` của version mới liệt kê `fedesoriano/cifar100` trong `dataset_sources`; trạng thái RUNNING sau >3 phút (v2/v3/v4 qua MCP đều ERROR trong ~2 phút vì mất dataset). Quota GPU trước khi chạy: 0.03h/30h.
 - Việc cần làm ở lần trigger tiếp theo: **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước** (`kaggle kernels status`, hoặc Kaggle MCP). Nếu COMPLETE: tải `summary.json`/`history.csv`/checkpoint, ghi kết quả vào `experiments/2026-10-31_a1_per_sample_kd_mask.md`, so sánh với B, rồi chuyển sang A2. Nếu ERROR: đọc log, retry 1/3.
 - Mục "BLOCKER (2026-10-31)" và các cập nhật trước đó trong file này đã **hết hiệu lực** (đã giải quyết bằng REST push).
+
+
+## TRẠNG THÁI HIỆN TẠI (cập nhật 2026-11-01 12:10 UTC) — đọc mục này trước
+
+**A1 COMPLETE:** best 69.28% (epoch 223), final 68.97% (epoch 240), runtime ~3,66 giờ; thấp hơn run B −0,98 (best) / −1,07 (final). Chi tiết và bài học:
+[experiments/2026-10-31_a1_per_sample_kd_mask.md](experiments/2026-10-31_a1_per_sample_kd_mask.md). (Mới 1 seed, chưa kết luận mạnh.) Các mục BLOCKER/"A1 ĐÃ SUBMIT" phía trên đã hết hiệu lực.
+
+**A2 ĐÃ SUBMIT (đang chạy):**
+- Experiment: **A2** — per-sample KD mask, chọn mẫu **high-confidence** (`KD_MASK_MODE=per_sample`, `KD_MASK_SELECT=high`), một yếu tố khác A1. Đối chứng chính = A1; phụ = B. Log: [experiments/2026-11-01_a2_per_sample_high_confidence.md](experiments/2026-11-01_a2_per_sample_high_confidence.md).
+- Code: Git commit `5fdeb36` (`kaggle/streamlined_kd_cifar100.py`, notebook `kaggle/experiments/a2_per_sample_high_confidence.ipynb`). Có thêm log `teacher_top1_selected/rest`, `kd_selected_fraction` trong `history.csv`.
+- Notebook: https://www.kaggle.com/code/trananhkiet/streamlined-kd-cifar100-a2-per-sample-high-conf — **version 1**, submit 2026-11-01 ~12:10 UTC, T4, dataset `fedesoriano/cifar100` đã xác minh bằng `kaggle kernels pull -m`, trạng thái RUNNING sau >2,5 phút.
+- Quota GPU: A1 đã dùng ~3,7h; còn ~26h/30h trước khi submit A2 (refresh 2026-11-07).
+- Việc cần làm ở lần trigger tiếp theo: **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.** Dự kiến xong ~16:00 UTC (≈ 3,7 giờ). Nếu COMPLETE: tải output (Kaggle MCP `list_notebook_session_output`; CLI `kaggle kernels output` có thể bị chặn host `www.kaggleusercontent.com`), ghi kết quả vào file A2, rồi sang **A3** (sweep `lambda_bc` 0/0.5/2.0). Nếu ERROR: đọc log, retry 1/3.
+
+### Ghi chú vận hành (rút ra ở lần chạy 12:00 UTC)
+- Lịch v5: đã chuyển sang cron `CRON_TZ=Asia/Saigon 0 19,3,11 * * *` (mỗi 8 giờ). Lần chạy một lần ban đầu tự tắt trigger (`run_once_fired`) nên phải bật lại bằng `update_trigger` (đã làm).
+- `kaggle kernels output` bị 403 ở host `www.kaggleusercontent.com`; dùng Kaggle MCP `list_notebook_session_output` (trả log đầy đủ + URL file) hoặc xin mở host này trong Network access nếu cần tải checkpoint.
+- `kaggle kernels status` bị rate limit nếu gọi dồn; dùng MCP `get_notebook_session_status`.
+- PyTorch không có sẵn trong container; muốn unit test CPU phải `pip install torch` (PyPI hoạt động; index download.pytorch.org bị chặn).
+- Bốn file `.pth` báo modified giả (Git LFS): đã `git update-index --skip-worktree`, không commit chúng.
