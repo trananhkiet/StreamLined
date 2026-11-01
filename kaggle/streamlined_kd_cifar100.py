@@ -48,6 +48,9 @@ class Config:
     # "scalar": repo/run-B behavior, mean(KL) * mask  (mask has no real selection effect)
     # "per_sample": experiment A1, mean(mask_i * KL_i)
     kd_mask_mode: str = os.getenv("KD_MASK_MODE", "scalar")
+    # Which samples the confidence mask keeps: "low" (repo/A1: teacher confidence <= median) or
+    # "high" (experiment A2: teacher confidence >= median). Only changes the KD mask, not the BC mask.
+    kd_mask_select: str = os.getenv("KD_MASK_SELECT", "low")
     # Set to a positive integer only for a quick pipeline smoke test.
     limit_train_batches: int = int(os.getenv("LIMIT_TRAIN_BATCHES", "0"))
     limit_eval_batches: int = int(os.getenv("LIMIT_EVAL_BATCHES", "0"))
@@ -336,11 +339,35 @@ def paper_skd_loss(student_logits: torch.Tensor, teacher_logits: torch.Tensor, t
     return torch.sqrt(distances).mean()
 
 
+MASK_STATS = {"selected": 0.0, "selected_correct": 0.0, "rest": 0.0, "rest_correct": 0.0}
+
+
+def pop_mask_stats() -> dict[str, float]:
+    """Teacher top-1 (%) on the KD-selected vs. non-selected samples since the last call, then reset."""
+    stats = dict(MASK_STATS)
+    for key in MASK_STATS:
+        MASK_STATS[key] = 0.0
+    total = stats["selected"] + stats["rest"]
+    return {
+        "teacher_top1_selected": 100.0 * stats["selected_correct"] / max(stats["selected"], 1.0),
+        "teacher_top1_rest": 100.0 * stats["rest_correct"] / max(stats["rest"], 1.0),
+        "kd_selected_fraction": stats["selected"] / max(total, 1.0),
+    }
+
+
 def distillation_losses(student_logits: torch.Tensor, teacher_logits: torch.Tensor, labels: torch.Tensor) -> dict[str, torch.Tensor]:
     teacher_probability = F.softmax(teacher_logits.detach(), dim=1)
     confidence = teacher_probability.max(dim=1).values.detach()
     confidence_threshold = np.percentile(confidence.cpu().numpy().flatten(), 50)
-    confidence_mask = confidence.le(confidence_threshold)
+    if CFG.kd_mask_select == "high":
+        confidence_mask = confidence.ge(confidence_threshold)
+    else:
+        confidence_mask = confidence.le(confidence_threshold)
+    teacher_correct = teacher_logits.detach().argmax(dim=1).eq(labels)
+    MASK_STATS["selected"] += confidence_mask.sum().item()
+    MASK_STATS["selected_correct"] += (teacher_correct & confidence_mask).sum().item()
+    MASK_STATS["rest"] += (~confidence_mask).sum().item()
+    MASK_STATS["rest_correct"] += (teacher_correct & ~confidence_mask).sum().item()
     class_confidence = teacher_probability.sum(dim=0).detach()
     class_threshold = np.percentile(class_confidence.cpu().numpy().flatten(), 50)
     class_mask = class_confidence.le(class_threshold)
@@ -486,6 +513,7 @@ def run_experiment() -> dict[str, object]:
             "epoch": epoch + 1,
             "lr": optimizer.param_groups[0]["lr"],
             **{f"train_{key}": value for key, value in train_metrics.items()},
+            **pop_mask_stats(),
             **{f"test_{key}": value for key, value in test_metrics.items()},
         }
         history.append(row)
