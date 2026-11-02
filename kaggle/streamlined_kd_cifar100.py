@@ -41,7 +41,7 @@ class Config:
     momentum: float = 0.9
     weight_decay: float = 5e-4
     lr_milestones: tuple[int, ...] = (150, 180, 210)
-    temperature: float = 4.0
+    temperature: float = float(os.getenv("TEMPERATURE", "4.0"))
     tik: float = 1e-1
     ce_weight: float = float(os.getenv("CE_WEIGHT", "0.5"))
     kd_weight: float = float(os.getenv("KD_WEIGHT", "0.5"))

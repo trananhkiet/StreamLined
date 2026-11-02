@@ -30,5 +30,31 @@ Unit test CPU: (1) với `LOGIT_STD=0` loss **giống hệt bit** commit trướ
 (2) `standardize_logits` bằng đúng công thức chính thức, mean≈0, std≈1; (3) với `LOGIT_STD=1` chỉ KD thay đổi (CE, BC giữ nguyên), loss và gradient hữu hạn;
 (4) probe gradient lớp cuối và thống kê std logits chạy trên ResNet20 thật. Smoke test full pipeline không chạy được ở cloud session (không có CIFAR-100 cục bộ).
 
+## Kết quả LS (T=4) — đã xác minh từ log Kaggle, notebook version 1, 2026-11-03
+Notebook: https://www.kaggle.com/code/trananhkiet/streamlined-kd-cifar100-b-logit-std (v1, T4, dataset attach OK). Config xác nhận trong `summary.json`: `logit_std=true`, `temperature=4.0`, `kd_mask_mode=scalar`, `lambda_bc=-1` (→0.5).
+
+| | Run B | **LS (T=4)** | Chênh lệch |
+|---|---:|---:|---:|
+| Best test top-1 | 70.26% (ep 235) | **68.87%** (ep 228) | **−1.39** |
+| Final test top-1 (ep 240) | 70.04% | **68.60%** | **−1.44** |
+| Best test top-5 | 92.32% | **91.84%** | −0.48 |
+| Best test loss | 1.0730 | 1.0742 | +0.001 |
+| Runtime | — | 13.820 s (~3,84 giờ) | |
+
+Teacher 71.59% / 92.51% (khớp). Train top-1 cuối 67.01%.
+Đường cong: LS thấp hơn các run dùng KD thường ở mọi giai đoạn (ví dụ epoch 151 sau LR drop: 59.96% so với ~62,5% ở A1/A2/A3).
+
+### Bài học
+- LS ở T=4 với recipe CE/KD 0.5/0.5 **kém run B ~1,4 điểm** (top-1 và top-5). Đây là kết quả âm rõ nhất cho đến nay, lớn hơn nhiều so với nhiễu seed ước tính ~0,3 điểm.
+- **Nghi ngờ chính là thang loss**, không phải bản thân ý tưởng chuẩn hóa: sau z-score logits có std 1 nên ở T=4 phân phối rất phẳng và KL nhỏ đi nhiều (thử trên dữ liệu ngẫu nhiên: KD 1.42 → 0.24, ~6 lần), tức tín hiệu distill yếu đi gần như giảm `kd_weight`.
+  Repo gốc của LS cho CIFAR-100 (Res56→Res20) cũng bù bằng `kd_weight` rất lớn (khoảng 9) so với CE nhỏ; recipe của ta (0.5/0.5) không có phần bù đó.
+  Train top-1 cuối 67.01% cao hơn run B/A (~66,0–66,7%) trong khi test thấp hơn: student ghi nhớ nhãn nhiều hơn và nhận ít regularization từ teacher hơn, phù hợp với giả thuyết KD bị yếu đi (chỉ là gợi ý, chưa kiểm chứng riêng).
+- Chưa lấy được `history.csv` (host `www.kaggleusercontent.com` bị chặn) nên chưa có `gradnorm_kd` / `student_logit_std` để xác nhận trực tiếp giả thuyết thang loss.
+
+## Bước tiếp (theo plan: "thử riêng T=1,2 nếu cần")
+**LS-T2**: cùng LS nhưng `TEMPERATURE=2.0` (T thấp hơn làm KL lớn hơn: hệ số T² và phân phối nhọn hơn). Một yếu tố so với LS(T=4). Notebook `kaggle/experiments/b_logit_standardization_t2.ipynb`.
+Nếu LS-T2 vẫn kém B nhiều thì T=1 và/hoặc tăng `kd_weight` (lúc đó là yếu tố thứ hai, cần ghi rõ) là hướng tiếp; nếu không cải thiện thì kết luận LS không hợp recipe này và sang C (DKD).
+Test CPU cho `TEMPERATURE`: mặc định 4.0 giữ nguyên bit; T=2 khớp công thức chính thức; BC không phụ thuộc T.
+
 ## Trạng thái
-Submit 2026-11-02 ~12:21 UTC: notebook `streamlined-kd-cifar100-b-logit-std` version 1, dataset attach đã xác minh, RUNNING (>2 phút). Chưa có kết quả. Xem EXPERIMENT_HANDOFF.md (mục "TRẠNG THÁI HIỆN TẠI").
+Xem EXPERIMENT_HANDOFF.md (mục "TRẠNG THÁI HIỆN TẠI").
