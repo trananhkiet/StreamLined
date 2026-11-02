@@ -50,9 +50,26 @@ Teacher 71.59% / 92.51% (khớp). Train top-1 cuối 66.66%. Config xác nhận 
 - Quan trọng hơn: bản thân kết quả A3-bc0 (không BC) vẫn cao hơn cả A1 lẫn A2, nghĩa là mất ~1 điểm ở A1/A2 do chọn mẫu per-sample, không do BC.
 - Mới 1 seed (2021); cần nhiều seed trước khi kết luận. Không lấy được `history.csv` (host `www.kaggleusercontent.com` bị chặn) nên chưa có `gradnorm_ce/kd/bc` theo epoch để đối chiếu giả thuyết "BC nhỏ về giá trị chưa chắc yếu về gradient".
 
-## Kế hoạch còn lại của A3
-- **A3-bc2 (`LAMBDA_BC=2.0`)**: notebook `kaggle/experiments/a3_lambda_bc2.ipynb` (khác `a3_lambda_bc0.ipynb` đúng một dòng: default `LAMBDA_BC`). Đối chứng = run B (0.5) và A3-bc0 (0).
-- `lambda_bc=0.5` = run B, không chạy lại.
+## Kết quả A3-bc2 (`LAMBDA_BC=2.0`) — đã xác minh từ log Kaggle, notebook version 1, 2026-11-02
+Notebook: https://www.kaggle.com/code/trananhkiet/streamlined-kd-cifar100-a3-lambda-bc2 (v1, T4, dataset attach OK).
+
+| | Run B (`0.5`) | A3-bc0 (`0`) | **A3-bc2 (`2.0`)** | bc2 − B |
+|---|---:|---:|---:|---:|
+| Best test top-1 | 70.26% (ep 235) | 70.03% (ep 236) | **70.31%** (ep 239) | +0.05 |
+| Final test top-1 (ep 240) | 70.04% | 69.85% | **69.86%** | −0.18 |
+| Best test top-5 | 92.32% | 92.63% | 92.24% | −0.08 |
+| Best test loss | 1.0730 | 1.0603 | 1.0659 | −0.007 |
+| Runtime | — | 13.830 s | 15.188 s (~4,22 giờ) | |
+
+Config xác nhận trong `summary.json`: `kd_mask_mode=scalar`, `kd_mask_select=low`, `lambda_bc=2.0`. Train top-1 cuối 66.69%.
+
+## Kết luận A3 (sweep `lambda_bc` 0 / 0.5 / 2.0, nền run B, 1 seed)
+- Best top-1: 70.03 / 70.26 / 70.31. Final top-1: 69.85 / 70.04 / 69.86. Biên độ giữa 3 mức chỉ ~0,3 điểm và không đơn điệu theo `lambda_bc`:
+  **hệ số BC trong khoảng 0–2 không có tác dụng phân biệt được với nhiễu seed** trong recipe này. BC không phải đòn bẩy để tiến gần 72,5% của paper.
+- Điều này cũng củng cố kết luận ở A1/A2: phần mất ~0,5–1 điểm đến từ việc chọn mẫu per-sample, không từ BC.
+- Không lấy được `history.csv` (host `www.kaggleusercontent.com` bị chặn) nên chưa có `gradnorm_ce/kd/bc` theo epoch để kiểm tra giả thuyết "BC nhỏ về giá trị chưa chắc yếu về gradient".
+  Giá trị mẫu trên dữ liệu ngẫu nhiên: gradnorm CE ~1.1, KD ~0.14–0.26, BC ~0.006–0.009 (BC yếu hơn CE khoảng 100–200 lần ở lớp cuối, dù nhân `lambda_bc=2` cũng vẫn nhỏ).
+- Bước tiếp: plan item **B (Logit Standardization)** — xem [2026-11-02_b_logit_standardization.md](2026-11-02_b_logit_standardization.md). (Lưu ý: "B" của plan khác với "run B" cũ là baseline CE/KD 0.5/0.5.)
 
 ## Trạng thái
-A3-bc0 xong (ở trên). A3-bc2 submit 2026-11-02 ~04:08 UTC: notebook `streamlined-kd-cifar100-a3-lambda-bc2` version 1, dataset attach đã xác minh, RUNNING (>2 phút). Chưa có kết quả. Xem EXPERIMENT_HANDOFF.md (mục "TRẠNG THÁI HIỆN TẠI").
+A3 hoàn tất (3 mức `lambda_bc`: 0 = A3-bc0, 0.5 = run B, 2.0 = A3-bc2).

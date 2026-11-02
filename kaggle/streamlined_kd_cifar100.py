@@ -54,6 +54,9 @@ class Config:
     # Weight of the SKD/BC (Gram-matrix) term. Negative (default) = share kd_weight, i.e. runs A/B/A1/A2 behavior.
     # Experiment A3 sweeps this independently of kd_weight (0 / 0.5 / 2.0).
     lambda_bc: float = float(os.getenv("LAMBDA_BC", "-1"))
+    # Plan item "B" (Logit Standardization, CVPR 2024): z_hat = (z - mean(z)) / (std(z) + 1e-7) per sample, applied to
+    # BOTH student and teacher logits inside the KL branch only (CE, Gram/BC and the confidence masks keep raw logits).
+    logit_std: bool = os.getenv("LOGIT_STD", "0") == "1"
     # Every N batches log the L2 norm of d(loss term)/d(last-layer weight) for CE/KD/BC (0 disables).
     grad_log_every: int = int(os.getenv("GRAD_LOG_EVERY", "100"))
 
@@ -330,7 +333,15 @@ def make_loaders() -> tuple[DataLoader, DataLoader]:
 # reproduction of the reported result.
 
 # %%
+def standardize_logits(logits: torch.Tensor) -> torch.Tensor:
+    """Per-sample logit standardization (Sun et al., CVPR 2024): zero mean, unit std over the class dimension."""
+    return (logits - logits.mean(dim=1, keepdim=True)) / (1e-7 + logits.std(dim=1, keepdim=True))
+
+
 def kd_loss(student_logits: torch.Tensor, teacher_logits: torch.Tensor, temperature: float, per_sample: bool = False) -> torch.Tensor:
+    if CFG.logit_std:
+        student_logits = standardize_logits(student_logits)
+        teacher_logits = standardize_logits(teacher_logits)
     student_log_prob = F.log_softmax(student_logits / temperature, dim=1)
     teacher_prob = F.softmax(teacher_logits / temperature, dim=1)
     per = F.kl_div(student_log_prob, teacher_prob, reduction="none").sum(1) * temperature**2
@@ -346,6 +357,18 @@ def paper_skd_loss(student_logits: torch.Tensor, teacher_logits: torch.Tensor, t
     covariance_inv = torch.cholesky_inverse(torch.linalg.cholesky(covariance))
     distances = torch.einsum("bi,ij,bj->b", difference, covariance_inv, difference)
     return torch.sqrt(distances).mean()
+
+
+LOGIT_STATS = {"student_std": 0.0, "teacher_std": 0.0, "count": 0.0}
+
+
+def pop_logit_stats() -> dict[str, float]:
+    """Mean per-sample std of the RAW student/teacher logits since the last call, then reset."""
+    count = max(LOGIT_STATS["count"], 1.0)
+    stats = {"student_logit_std": LOGIT_STATS["student_std"] / count, "teacher_logit_std": LOGIT_STATS["teacher_std"] / count}
+    for key in LOGIT_STATS:
+        LOGIT_STATS[key] = 0.0
+    return stats
 
 
 MASK_STATS = {"selected": 0.0, "selected_correct": 0.0, "rest": 0.0, "rest_correct": 0.0}
@@ -376,6 +399,9 @@ def raw_loss_terms(
     else:
         confidence_mask = confidence.le(confidence_threshold)
     if track_stats:
+        LOGIT_STATS["student_std"] += student_logits.detach().std(dim=1).mean().item()
+        LOGIT_STATS["teacher_std"] += teacher_logits.detach().std(dim=1).mean().item()
+        LOGIT_STATS["count"] += 1.0
         teacher_correct = teacher_logits.detach().argmax(dim=1).eq(labels)
         MASK_STATS["selected"] += confidence_mask.sum().item()
         MASK_STATS["selected_correct"] += (teacher_correct & confidence_mask).sum().item()
@@ -561,6 +587,7 @@ def run_experiment() -> dict[str, object]:
             **{f"train_{key}": value for key, value in train_metrics.items()},
             **pop_mask_stats(),
             **pop_grad_stats(),
+            **pop_logit_stats(),
             **{f"test_{key}": value for key, value in test_metrics.items()},
         }
         history.append(row)
