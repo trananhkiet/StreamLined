@@ -55,4 +55,4 @@ Teacher 71.59% / 92.51% (khớp). Train top-1 cuối 66.66%. Config xác nhận 
 - `lambda_bc=0.5` = run B, không chạy lại.
 
 ## Trạng thái
-Xem EXPERIMENT_HANDOFF.md (mục "TRẠNG THÁI HIỆN TẠI").
+A3-bc0 xong (ở trên). A3-bc2 submit 2026-11-02 ~04:08 UTC: notebook `streamlined-kd-cifar100-a3-lambda-bc2` version 1, dataset attach đã xác minh, RUNNING (>2 phút). Chưa có kết quả. Xem EXPERIMENT_HANDOFF.md (mục "TRẠNG THÁI HIỆN TẠI").

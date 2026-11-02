@@ -1,6 +1,6 @@
 # SKD experiment handoff
 
-Updated: 2026-11-01 20:10 UTC (trigger tự động v5).
+Updated: 2026-11-02 04:12 UTC (trigger tự động v5).
 
 ## Mục tiêu và trạng thái
 
@@ -15,6 +15,7 @@ Tikhonov `0.1`, chạy trên Kaggle T4.
 | B — tốt nhất | 0.5/0.5 | 71.59% | **70.26% (epoch 235)** | 70.04% |
 | A1 (per-sample KD mask, low-conf) | 0.5/0.5 | 71.59% | 69.28% (epoch 223) | 68.97% |
 | A2 (per-sample KD mask, high-conf) | 0.5/0.5 | 71.59% | 69.76% (epoch 234) | 69.57% |
+| A3-bc0 (lambda_bc=0, nền B) | 0.5/0.5 | 71.59% | 70.03% (epoch 236) | 69.85% |
 | Paper | — | 72.40% | 72.50% | — |
 
 Run B cải thiện `+1.77` điểm so với A nhưng còn thấp hơn paper `2.24` điểm.
@@ -198,7 +199,7 @@ qua biến `KAGGLE_API_TOKEN`, **không** qua `KAGGLE_KEY`; dùng `export KAGGLE
 - Bốn file `.pth` báo modified giả (Git LFS): đã `git update-index --skip-worktree`, không commit chúng.
 
 
-## TRẠNG THÁI HIỆN TẠI (cập nhật 2026-11-01 20:10 UTC = 03:10 giờ Sài Gòn 2026-11-02) — đọc mục này trước
+## (Lịch sử) Trạng thái 2026-11-01 20:10 UTC — đã được thay bằng mục TRẠNG THÁI HIỆN TẠI ở cuối file
 
 **A2 COMPLETE:** best 69.76% (epoch 234), final 69.57% (epoch 240), top-5 92.04%, test loss 1.1067, runtime 14.173 s (~3,94 giờ).
 So với A1: +0,48 best / +0,60 final (high-conf tốt hơn low-conf). So với run B: **−0,50 best / −0,47 final** — cả A1 và A2 đều chưa vượt B. Chi tiết:
@@ -215,3 +216,21 @@ So với A1: +0,48 best / +0,60 final (high-conf tốt hơn low-conf). So với 
 - Config `CFG` là frozen dataclass: khi unit test đổi giá trị dùng `object.__setattr__(CFG, name, value)`.
 - Unit test CPU cần `pip install torch torchvision tqdm pillow numpy` (PyPI chạy được). Test hồi quy mẫu: so `distillation_losses` của commit trước (git show) với bản mới, sai lệch phải bằng 0.
 - Lần chạy 20:04 UTC: trigger đã có cron nên không cần chuyển lịch; `kaggle kernels status` có thể bị rate limit, dùng MCP `get_notebook_session_status`.
+
+
+## TRẠNG THÁI HIỆN TẠI (cập nhật 2026-11-02 04:12 UTC = 11:12 giờ Sài Gòn) — đọc mục này trước
+
+**A3-bc0 COMPLETE** (`LAMBDA_BC=0`, nền run B): best **70.03%** (epoch 236), final **69.85%**, top-5 92.63%, test loss 1.0603, runtime 13.830 s (~3,84 giờ).
+So với B: −0,23 best / −0,19 final top-1, nhưng top-5 +0,31 và test loss tốt hơn. Bỏ BC gần như không đổi kết quả; chênh top-1 nhỏ, trong tầm dao động seed (1 seed).
+A3-bc0 vẫn cao hơn A1 (69.28) và A2 (69.76): ~1 điểm mất ở A1/A2 là do chọn mẫu per-sample, không phải do BC. Chi tiết: [experiments/2026-11-02_a3_lambda_bc_sweep.md](experiments/2026-11-02_a3_lambda_bc_sweep.md).
+Chưa lấy được `history.csv` (host `www.kaggleusercontent.com` bị chặn) nên chưa có `gradnorm_*` và `teacher_top1_selected` theo epoch.
+
+**A3-bc2 ĐÃ SUBMIT (đang chạy):**
+- Experiment: **A3-bc2** (`LAMBDA_BC=2.0`, nền run B: KD mask scalar, CE/KD 0.5/0.5). Đối chứng: B (0.5) và A3-bc0 (0). `lambda_bc=0.5` chính là B, không chạy lại.
+- Code: Git commit `3619d1a` (notebook `kaggle/experiments/a3_lambda_bc2.ipynb`, khác `a3_lambda_bc0.ipynb` đúng một dòng default `LAMBDA_BC`). Code train đã commit ở `c2476b2`.
+- Notebook: https://www.kaggle.com/code/trananhkiet/streamlined-kd-cifar100-a3-lambda-bc2 — **version 1**, submit 2026-11-02 ~04:08 UTC, T4, dataset `fedesoriano/cifar100` đã xác minh bằng `kaggle kernels pull -m`, RUNNING sau >2 phút.
+- Quota GPU: đã dùng 11,5h trước khi submit; còn ~18,5h/30h (refresh 2026-11-07). Mỗi run ~3,8–3,9 giờ GPU; còn đủ cho khoảng 4 run nữa trong tuần.
+- Việc cần làm ở lần trigger tiếp theo (19:00 giờ Sài Gòn): **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.** Dự kiến xong ~08:00 UTC (15:00 giờ Sài Gòn). Nếu COMPLETE: lấy kết quả bằng MCP `list_notebook_session_output` (log đầy đủ), ghi vào file A3, so với B và A3-bc0.
+  Sau đó A3 hoàn tất → sang **B** (Logit Standardization): cần implement mới trong `streamlined_kd_cifar100.py`:
+  `z_hat = (z - mean(z)) / (std(z) + 1e-7)` theo từng mẫu, chỉ áp cho nhánh KL (CE và Gram/BC dùng logits gốc), bật/tắt tại T=4 trước; log std logits và KL gradient norm.
+  Nền của B: run B (KD mask scalar, `LAMBDA_BC` mặc định `-1`), giữ nguyên các phần khác. Nhớ test hồi quy CPU (loss mặc định phải giống hệt bản cũ) như đã làm ở A3. Nếu ERROR: đọc log, retry 1/3.
