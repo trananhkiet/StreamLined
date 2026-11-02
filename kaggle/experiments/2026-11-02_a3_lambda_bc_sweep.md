@@ -31,5 +31,28 @@ Unit test CPU (B=64, C=100): (1) loss mới **giống hệt bit** bản cũ (com
 reset sau mỗi epoch, backward thật vẫn chạy. Mẫu: gradnorm CE 1.07, KD 0.26, BC 0.006 (dữ liệu ngẫu nhiên, chỉ để minh họa thang).
 Smoke test full pipeline không chạy được ở cloud session (không có CIFAR-100 cục bộ).
 
+## Kết quả A3-bc0 (`LAMBDA_BC=0`) — đã xác minh từ log Kaggle, notebook version 1, 2026-11-02
+Notebook: https://www.kaggle.com/code/trananhkiet/streamlined-kd-cifar100-a3-lambda-bc0 (v1, T4, dataset attach OK).
+
+| | Run B (`lambda_bc=0.5`) | **A3-bc0 (`lambda_bc=0`)** | Chênh lệch |
+|---|---:|---:|---:|
+| Best test top-1 | 70.26% (ep 235) | **70.03%** (ep 236) | −0.23 |
+| Final test top-1 (ep 240) | 70.04% | **69.85%** | −0.19 |
+| Best test top-5 | 92.32% | **92.63%** | +0.31 |
+| Best test loss | 1.0730 | **1.0603** | −0.013 |
+| Runtime | — | 13.830 s (~3,84 giờ) | |
+
+Teacher 71.59% / 92.51% (khớp). Train top-1 cuối 66.66%. Config xác nhận trong `summary.json`: `kd_mask_mode=scalar`, `kd_mask_select=low`, `lambda_bc=0.0`.
+
+### Bài học (A3-bc0)
+- Bỏ hẳn BC chỉ làm top-1 giảm ~0,2 điểm (best và final), còn top-5 (+0,31) và test loss (−0,013) thậm chí tốt hơn B. Chênh lệch top-1 này nằm trong mức dao động seed thường gặp
+  (A1 đến A2 đã lệch 0,5 chỉ vì đổi mask), nên **chưa chứng minh được BC có ích**; kết quả cho thấy đóng góp của BC trong recipe này rất nhỏ.
+- Quan trọng hơn: bản thân kết quả A3-bc0 (không BC) vẫn cao hơn cả A1 lẫn A2, nghĩa là mất ~1 điểm ở A1/A2 do chọn mẫu per-sample, không do BC.
+- Mới 1 seed (2021); cần nhiều seed trước khi kết luận. Không lấy được `history.csv` (host `www.kaggleusercontent.com` bị chặn) nên chưa có `gradnorm_ce/kd/bc` theo epoch để đối chiếu giả thuyết "BC nhỏ về giá trị chưa chắc yếu về gradient".
+
+## Kế hoạch còn lại của A3
+- **A3-bc2 (`LAMBDA_BC=2.0`)**: notebook `kaggle/experiments/a3_lambda_bc2.ipynb` (khác `a3_lambda_bc0.ipynb` đúng một dòng: default `LAMBDA_BC`). Đối chứng = run B (0.5) và A3-bc0 (0).
+- `lambda_bc=0.5` = run B, không chạy lại.
+
 ## Trạng thái
-A3-bc0 submit 2026-11-01 ~20:08 UTC: notebook `streamlined-kd-cifar100-a3-lambda-bc0` version 1, dataset attach đã xác minh, RUNNING (>2 phút). Chưa có kết quả. A3-bc2 chờ sau. Xem EXPERIMENT_HANDOFF.md (mục "TRẠNG THÁI HIỆN TẠI").
+Xem EXPERIMENT_HANDOFF.md (mục "TRẠNG THÁI HIỆN TẠI").
