@@ -42,13 +42,13 @@ Notebook: https://www.kaggle.com/code/trananhkiet/streamlined-kd-cifar100-b-logi
 | Runtime | — | 13.820 s (~3,84 giờ) | |
 
 Teacher 71.59% / 92.51% (khớp). Train top-1 cuối 67.01%.
-Đường cong: LS thấp hơn các run dùng KD thường ở mọi giai đoạn (ví dụ epoch 151 sau LR drop: 59.96% so với ~62,5% ở A1/A2/A3).
+Đường cong: LS thấp hơn A2/A3 ngay sau LR drop đầu tiên (epoch 151: 59.96% so với 62.09% ở A2 và 62.52–62.61% ở A3; A1 là 60.29%).
 
 ### Bài học
 - LS ở T=4 với recipe CE/KD 0.5/0.5 **kém run B ~1,4 điểm** (top-1 và top-5). Đây là kết quả âm rõ nhất cho đến nay, lớn hơn nhiều so với nhiễu seed ước tính ~0,3 điểm.
 - **Nghi ngờ chính là thang loss**, không phải bản thân ý tưởng chuẩn hóa: sau z-score logits có std 1 nên ở T=4 phân phối rất phẳng và KL nhỏ đi nhiều (thử trên dữ liệu ngẫu nhiên: KD 1.42 → 0.24, ~6 lần), tức tín hiệu distill yếu đi gần như giảm `kd_weight`.
   Repo gốc của LS cho CIFAR-100 (Res56→Res20) cũng bù bằng `kd_weight` rất lớn (khoảng 9) so với CE nhỏ; recipe của ta (0.5/0.5) không có phần bù đó.
-  Train top-1 cuối 67.01% cao hơn run B/A (~66,0–66,7%) trong khi test thấp hơn: student ghi nhớ nhãn nhiều hơn và nhận ít regularization từ teacher hơn, phù hợp với giả thuyết KD bị yếu đi (chỉ là gợi ý, chưa kiểm chứng riêng).
+  Train top-1 cuối 67.01% cao hơn A1/A2/A3 (65.97–66.69%) trong khi test thấp hơn: student khớp train nhiều hơn nhưng tổng quát kém hơn, có thể vì nhận ít regularization từ teacher hơn, phù hợp với giả thuyết KD bị yếu đi (chỉ là gợi ý, chưa kiểm chứng riêng; chưa có train top-1 của run B để so trực tiếp).
 - Chưa lấy được `history.csv` (host `www.kaggleusercontent.com` bị chặn) nên chưa có `gradnorm_kd` / `student_logit_std` để xác nhận trực tiếp giả thuyết thang loss.
 
 ## Bước tiếp (theo plan: "thử riêng T=1,2 nếu cần")
@@ -57,4 +57,4 @@ Nếu LS-T2 vẫn kém B nhiều thì T=1 và/hoặc tăng `kd_weight` (lúc đ�
 Test CPU cho `TEMPERATURE`: mặc định 4.0 giữ nguyên bit; T=2 khớp công thức chính thức; BC không phụ thuộc T.
 
 ## Trạng thái
-Xem EXPERIMENT_HANDOFF.md (mục "TRẠNG THÁI HIỆN TẠI").
+LS(T=4) xong (ở trên). LS-T2 submit 2026-11-02 ~20:10 UTC: notebook `streamlined-kd-cifar100-b-logit-std-t2` version 1, dataset attach đã xác minh, RUNNING (>2 phút). Chưa có kết quả. Xem EXPERIMENT_HANDOFF.md (mục "TRẠNG THÁI HIỆN TẠI").
