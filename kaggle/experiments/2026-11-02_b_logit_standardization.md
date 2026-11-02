@@ -31,4 +31,4 @@ Unit test CPU: (1) với `LOGIT_STD=0` loss **giống hệt bit** commit trướ
 (4) probe gradient lớp cuối và thống kê std logits chạy trên ResNet20 thật. Smoke test full pipeline không chạy được ở cloud session (không có CIFAR-100 cục bộ).
 
 ## Trạng thái
-Xem EXPERIMENT_HANDOFF.md (mục "TRẠNG THÁI HIỆN TẠI").
+Submit 2026-11-02 ~12:21 UTC: notebook `streamlined-kd-cifar100-b-logit-std` version 1, dataset attach đã xác minh, RUNNING (>2 phút). Chưa có kết quả. Xem EXPERIMENT_HANDOFF.md (mục "TRẠNG THÁI HIỆN TẠI").

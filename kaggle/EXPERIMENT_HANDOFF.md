@@ -1,6 +1,6 @@
 # SKD experiment handoff
 
-Updated: 2026-11-02 04:12 UTC (trigger tự động v5).
+Updated: 2026-11-02 12:25 UTC (trigger tự động v5).
 
 ## Mục tiêu và trạng thái
 
@@ -16,6 +16,7 @@ Tikhonov `0.1`, chạy trên Kaggle T4.
 | A1 (per-sample KD mask, low-conf) | 0.5/0.5 | 71.59% | 69.28% (epoch 223) | 68.97% |
 | A2 (per-sample KD mask, high-conf) | 0.5/0.5 | 71.59% | 69.76% (epoch 234) | 69.57% |
 | A3-bc0 (lambda_bc=0, nền B) | 0.5/0.5 | 71.59% | 70.03% (epoch 236) | 69.85% |
+| A3-bc2 (lambda_bc=2.0, nền B) | 0.5/0.5 | 71.59% | 70.31% (epoch 239) | 69.86% |
 | Paper | — | 72.40% | 72.50% | — |
 
 Run B cải thiện `+1.77` điểm so với A nhưng còn thấp hơn paper `2.24` điểm.
@@ -218,7 +219,7 @@ So với A1: +0,48 best / +0,60 final (high-conf tốt hơn low-conf). So với 
 - Lần chạy 20:04 UTC: trigger đã có cron nên không cần chuyển lịch; `kaggle kernels status` có thể bị rate limit, dùng MCP `get_notebook_session_status`.
 
 
-## TRẠNG THÁI HIỆN TẠI (cập nhật 2026-11-02 04:12 UTC = 11:12 giờ Sài Gòn) — đọc mục này trước
+## (Lịch sử) Trạng thái 2026-11-02 04:12 UTC — đã được thay bằng mục TRẠNG THÁI HIỆN TẠI ở cuối file
 
 **A3-bc0 COMPLETE** (`LAMBDA_BC=0`, nền run B): best **70.03%** (epoch 236), final **69.85%**, top-5 92.63%, test loss 1.0603, runtime 13.830 s (~3,84 giờ).
 So với B: −0,23 best / −0,19 final top-1, nhưng top-5 +0,31 và test loss tốt hơn. Bỏ BC gần như không đổi kết quả; chênh top-1 nhỏ, trong tầm dao động seed (1 seed).
@@ -234,3 +235,20 @@ Chưa lấy được `history.csv` (host `www.kaggleusercontent.com` bị chặn
   Sau đó A3 hoàn tất → sang **B** (Logit Standardization): cần implement mới trong `streamlined_kd_cifar100.py`:
   `z_hat = (z - mean(z)) / (std(z) + 1e-7)` theo từng mẫu, chỉ áp cho nhánh KL (CE và Gram/BC dùng logits gốc), bật/tắt tại T=4 trước; log std logits và KL gradient norm.
   Nền của B: run B (KD mask scalar, `LAMBDA_BC` mặc định `-1`), giữ nguyên các phần khác. Nhớ test hồi quy CPU (loss mặc định phải giống hệt bản cũ) như đã làm ở A3. Nếu ERROR: đọc log, retry 1/3.
+
+
+## TRẠNG THÁI HIỆN TẠI (cập nhật 2026-11-02 12:25 UTC = 19:25 giờ Sài Gòn) — đọc mục này trước
+
+**A3 HOÀN TẤT.** `lambda_bc` = 0 / 0.5 (run B) / 2.0 → best 70.03 / 70.26 / 70.31, final 69.85 / 70.04 / 69.86 (1 seed). Biên độ ~0,3 điểm, không đơn điệu:
+hệ số BC trong khoảng 0–2 không phân biệt được với nhiễu seed. A3-bc2 chạy 15.188 s (~4,22 giờ). Chi tiết: [experiments/2026-11-02_a3_lambda_bc_sweep.md](experiments/2026-11-02_a3_lambda_bc_sweep.md).
+Tổng kết A1/A2/A3: chưa hướng nào vượt rõ run B (70.26/70.04); chọn mẫu per-sample làm tệ hơn ~0,5–1 điểm, BC không ảnh hưởng.
+
+**B (Logit Standardization, gọi tắt LS; khác "run B" baseline) ĐÃ SUBMIT (đang chạy):**
+- Nền = run B; chỉ đổi `LOGIT_STD=1` (z-score logits theo mẫu cho cả student và teacher, chỉ nhánh KL, T=4). Log: [experiments/2026-11-02_b_logit_standardization.md](experiments/2026-11-02_b_logit_standardization.md).
+- Code: Git commit `fc43972` (`kaggle/streamlined_kd_cifar100.py` thêm `LOGIT_STD`, `standardize_logits`, log `student_logit_std/teacher_logit_std`; notebook `kaggle/experiments/b_logit_standardization.ipynb`). Test CPU: tắt `LOGIT_STD` thì loss giống hệt bit bản cũ; bật thì KL khớp công thức chính thức.
+- Notebook: https://www.kaggle.com/code/trananhkiet/streamlined-kd-cifar100-b-logit-std — **version 1**, submit 2026-11-02 ~12:21 UTC, T4, dataset `fedesoriano/cifar100` đã xác minh bằng `kaggle kernels pull -m`, RUNNING sau >2 phút.
+- Cảnh báo giả thuyết: sau chuẩn hóa ở T=4 thành phần KD nhỏ hơn nhiều (~6x trên dữ liệu ngẫu nhiên). Nếu LS kém run B, có thể do thang KD nhỏ chứ không do chuẩn hóa; khi đó thử đổi T (1 hoặc 2, theo plan) hoặc `kd_weight`, mỗi lần một yếu tố.
+- Quota GPU: đã dùng 15,73h trước khi submit LS; còn ~14,3h/30h (refresh 2026-11-07). Ước tính: LS ~4h → còn ~10,3h; C (DKD) ~4h → còn ~6h; D (DOT) cần backward riêng nên có thể ~5–6h. Nếu thiếu quota thì ghi blocker, không tự mở rộng ngân sách.
+- Việc cần làm ở lần trigger tiếp theo (03:00 giờ Sài Gòn 2026-11-03): **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.** Dự kiến xong ~16:30 UTC. Nếu COMPLETE: lấy kết quả bằng MCP `list_notebook_session_output`, ghi vào file LS, so với run B.
+  Quyết định tiếp: theo plan "chạy bật/tắt tại T=4 trước, sau đó thử riêng T=1,2 nếu cần" — nếu LS ≥ run B hoặc nghi ngờ do thang KD thì chạy LS với T=2 (`TEMPERATURE` hiện chưa có env; cần thêm `temperature: float = float(os.getenv("TEMPERATURE","4.0"))` trong Config và test hồi quy); nếu LS rõ ràng kém và không có lý do thang thì ghi kết luận và sang **C (DKD)**.
+  C (DKD): `L = CE + w(t)*(alpha*TCKD + beta*NCKD)`, bỏ KL cũ và BC; `alpha=1, beta=2, T=4, w(t)=min(epoch/20,1)`, LR 0.1; log TCKD/NCKD riêng; không dùng defaults `Distiller/DKD.py` local (có clamp logits). Nếu ERROR: đọc log, retry 1/3.
