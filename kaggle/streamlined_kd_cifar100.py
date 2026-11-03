@@ -57,6 +57,15 @@ class Config:
     # Plan item "B" (Logit Standardization, CVPR 2024): z_hat = (z - mean(z)) / (std(z) + 1e-7) per sample, applied to
     # BOTH student and teacher logits inside the KL branch only (CE, Gram/BC and the confidence masks keep raw logits).
     logit_std: bool = os.getenv("LOGIT_STD", "0") == "1"
+    # Plan item "C" (DKD, Zhao et al. CVPR 2022): replaces the KL + BC terms by
+    #   L = dkd_ce_weight * CE + min(epoch / dkd_warmup, 1) * (dkd_alpha * TCKD + dkd_beta * NCKD)
+    # following megvii-research/mdistiller (configs/cifar100/dkd/res56_res20.yaml: CE 1.0, alpha 1, beta 2, T 4, warmup 20).
+    # "skd" (default) keeps every previous experiment unchanged.
+    loss_mode: str = os.getenv("LOSS_MODE", "skd")
+    dkd_alpha: float = float(os.getenv("DKD_ALPHA", "1.0"))
+    dkd_beta: float = float(os.getenv("DKD_BETA", "2.0"))
+    dkd_warmup: int = int(os.getenv("DKD_WARMUP", "20"))
+    dkd_ce_weight: float = float(os.getenv("DKD_CE_WEIGHT", "1.0"))
     # Every N batches log the L2 norm of d(loss term)/d(last-layer weight) for CE/KD/BC (0 disables).
     grad_log_every: int = int(os.getenv("GRAD_LOG_EVERY", "100"))
 
@@ -387,10 +396,58 @@ def pop_mask_stats() -> dict[str, float]:
     }
 
 
+CURRENT_EPOCH = {"value": 1}  # 1-indexed epoch, used by the DKD warm-up weight
+DKD_STATS = {"tckd": 0.0, "nckd": 0.0, "count": 0.0}
+
+
+def pop_dkd_stats() -> dict[str, float]:
+    """Mean unweighted TCKD / NCKD (before alpha, beta and warm-up) since the last call, then reset."""
+    count = max(DKD_STATS["count"], 1.0)
+    stats = {"dkd_tckd": DKD_STATS["tckd"] / count, "dkd_nckd": DKD_STATS["nckd"] / count}
+    for key in DKD_STATS:
+        DKD_STATS[key] = 0.0
+    return stats
+
+
+def dkd_terms(
+    student_logits: torch.Tensor, teacher_logits: torch.Tensor, labels: torch.Tensor, track_stats: bool = True
+) -> dict[str, torch.Tensor]:
+    """Decoupled KD, same maths as mdistiller's `dkd_loss` (TCKD: target vs. rest; NCKD: among non-target classes)."""
+    temperature = CFG.temperature
+    batch = labels.size(0)
+    gt_mask = torch.zeros_like(student_logits).scatter_(1, labels.reshape(-1, 1), 1).bool()
+    other_mask = torch.ones_like(student_logits).scatter_(1, labels.reshape(-1, 1), 0).bool()
+    pred_student = F.softmax(student_logits / temperature, dim=1)
+    pred_teacher = F.softmax(teacher_logits / temperature, dim=1)
+
+    def binary(prob: torch.Tensor) -> torch.Tensor:
+        return torch.cat([(prob * gt_mask).sum(1, keepdim=True), (prob * other_mask).sum(1, keepdim=True)], dim=1)
+
+    tckd = F.kl_div(torch.log(binary(pred_student)), binary(pred_teacher), reduction="sum") * temperature**2 / batch
+    pred_teacher_rest = F.softmax(teacher_logits / temperature - 1000.0 * gt_mask, dim=1)
+    log_pred_student_rest = F.log_softmax(student_logits / temperature - 1000.0 * gt_mask, dim=1)
+    nckd = F.kl_div(log_pred_student_rest, pred_teacher_rest, reduction="sum") * temperature**2 / batch
+    if track_stats:
+        DKD_STATS["tckd"] += tckd.item()
+        DKD_STATS["nckd"] += nckd.item()
+        DKD_STATS["count"] += 1.0
+    return {
+        "ce": F.cross_entropy(student_logits, labels),
+        "kd": CFG.dkd_alpha * tckd + CFG.dkd_beta * nckd,
+        "bc": student_logits.new_zeros(()),
+    }
+
+
 def raw_loss_terms(
     student_logits: torch.Tensor, teacher_logits: torch.Tensor, labels: torch.Tensor, track_stats: bool = True
 ) -> dict[str, torch.Tensor]:
     """Unweighted CE / KD / BC terms (KD and BC already include their masks)."""
+    if track_stats:
+        LOGIT_STATS["student_std"] += student_logits.detach().std(dim=1).mean().item()
+        LOGIT_STATS["teacher_std"] += teacher_logits.detach().std(dim=1).mean().item()
+        LOGIT_STATS["count"] += 1.0
+    if CFG.loss_mode == "dkd":
+        return dkd_terms(student_logits, teacher_logits, labels, track_stats)
     teacher_probability = F.softmax(teacher_logits.detach(), dim=1)
     confidence = teacher_probability.max(dim=1).values.detach()
     confidence_threshold = np.percentile(confidence.cpu().numpy().flatten(), 50)
@@ -399,9 +456,6 @@ def raw_loss_terms(
     else:
         confidence_mask = confidence.le(confidence_threshold)
     if track_stats:
-        LOGIT_STATS["student_std"] += student_logits.detach().std(dim=1).mean().item()
-        LOGIT_STATS["teacher_std"] += teacher_logits.detach().std(dim=1).mean().item()
-        LOGIT_STATS["count"] += 1.0
         teacher_correct = teacher_logits.detach().argmax(dim=1).eq(labels)
         MASK_STATS["selected"] += confidence_mask.sum().item()
         MASK_STATS["selected_correct"] += (teacher_correct & confidence_mask).sum().item()
@@ -423,6 +477,9 @@ def raw_loss_terms(
 
 def distillation_losses(student_logits: torch.Tensor, teacher_logits: torch.Tensor, labels: torch.Tensor) -> dict[str, torch.Tensor]:
     raw = raw_loss_terms(student_logits, teacher_logits, labels)
+    if CFG.loss_mode == "dkd":
+        warmup = min(CURRENT_EPOCH["value"] / max(CFG.dkd_warmup, 1), 1.0)
+        return {"ce": CFG.dkd_ce_weight * raw["ce"], "kd": warmup * raw["kd"], "bc": 0.0 * raw["bc"]}
     return {
         "ce": CFG.ce_weight * raw["ce"],
         "kd": CFG.kd_weight * raw["kd"],
@@ -439,6 +496,8 @@ def probe_last_layer_grads(
     """Accumulate ||d term / d fc.weight||_2 of each UNWEIGHTED term (does not touch the real backward pass)."""
     raw = raw_loss_terms(student_logits, teacher_logits, labels, track_stats=False)
     for name, term in raw.items():
+        if not term.requires_grad:
+            continue
         grad = torch.autograd.grad(term, student.fc.weight, retain_graph=True, allow_unused=True)[0]
         GRAD_STATS[name] += 0.0 if grad is None else grad.norm().item()
     GRAD_STATS["count"] += 1.0
@@ -579,6 +638,7 @@ def run_experiment() -> dict[str, object]:
     started_at = time.time()
 
     for epoch in range(CFG.epochs):
+        CURRENT_EPOCH["value"] = epoch + 1
         train_metrics = train_one_epoch(student, teacher, train_loader, optimizer)
         test_metrics = evaluate(student, test_loader, CFG.limit_eval_batches)
         row = {
@@ -588,6 +648,7 @@ def run_experiment() -> dict[str, object]:
             **pop_mask_stats(),
             **pop_grad_stats(),
             **pop_logit_stats(),
+            **pop_dkd_stats(),
             **{f"test_{key}": value for key, value in test_metrics.items()},
         }
         history.append(row)

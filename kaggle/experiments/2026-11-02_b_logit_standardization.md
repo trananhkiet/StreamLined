@@ -51,10 +51,27 @@ Teacher 71.59% / 92.51% (khớp). Train top-1 cuối 67.01%.
   Train top-1 cuối 67.01% cao hơn A1/A2/A3 (65.97–66.69%) trong khi test thấp hơn: student khớp train nhiều hơn nhưng tổng quát kém hơn, có thể vì nhận ít regularization từ teacher hơn, phù hợp với giả thuyết KD bị yếu đi (chỉ là gợi ý, chưa kiểm chứng riêng; chưa có train top-1 của run B để so trực tiếp).
 - Chưa lấy được `history.csv` (host `www.kaggleusercontent.com` bị chặn) nên chưa có `gradnorm_kd` / `student_logit_std` để xác nhận trực tiếp giả thuyết thang loss.
 
-## Bước tiếp (theo plan: "thử riêng T=1,2 nếu cần")
-**LS-T2**: cùng LS nhưng `TEMPERATURE=2.0` (T thấp hơn làm KL lớn hơn: hệ số T² và phân phối nhọn hơn). Một yếu tố so với LS(T=4). Notebook `kaggle/experiments/b_logit_standardization_t2.ipynb`.
-Nếu LS-T2 vẫn kém B nhiều thì T=1 và/hoặc tăng `kd_weight` (lúc đó là yếu tố thứ hai, cần ghi rõ) là hướng tiếp; nếu không cải thiện thì kết luận LS không hợp recipe này và sang C (DKD).
-Test CPU cho `TEMPERATURE`: mặc định 4.0 giữ nguyên bit; T=2 khớp công thức chính thức; BC không phụ thuộc T.
+## Kết quả LS-T2 (T=2) — đã xác minh từ log Kaggle, notebook version 1, 2026-11-03
+Notebook: https://www.kaggle.com/code/trananhkiet/streamlined-kd-cifar100-b-logit-std-t2 (v1, T4, dataset attach OK). Config xác nhận trong `summary.json`: `logit_std=true`, `temperature=2.0`, còn lại như run B.
+
+| | Run B | LS (T=4) | **LS-T2 (T=2)** | LS-T2 − B |
+|---|---:|---:|---:|---:|
+| Best test top-1 | 70.26% (ep 235) | 68.87% (ep 228) | **69.30%** (ep 230) | **−0.96** |
+| Final test top-1 (ep 240) | 70.04% | 68.60% | **68.96%** | **−1.08** |
+| Best test top-5 | 92.32% | 91.84% | 92.16% | −0.16 |
+| Best test loss | 1.0730 | 1.0742 | 1.0571 | −0.016 |
+| Runtime | — | 13.820 s | 14.006 s (~3,89 giờ) | |
+
+Teacher 71.59% / 92.51% (khớp). Train top-1 cuối 67.15%.
+
+### Kết luận B (Logit Standardization) trong recipe CE/KD 0.5/0.5
+- Hạ T từ 4 xuống 2 thu hồi ~0,4 điểm (best +0,43, final +0,36) và đưa top-5/test loss gần hoặc tốt hơn B, phù hợp giả thuyết "KD bị yếu đi sau chuẩn hóa ở T=4".
+  Nhưng vẫn **kém run B gần 1 điểm top-1**; chuẩn hóa logits **không** cải thiện recipe này.
+- Chưa thử: T=1, hoặc tăng `kd_weight` để bù thang (repo gốc dùng ~9) — đó là yếu tố thứ hai/khác, ngoài phạm vi "một yếu tố mỗi lần" của run này; ghi lại như hướng chưa khám phá, ưu tiên thấp vì quota hạn chế.
+- Mới 1 seed (2021). Chưa có `history.csv` (host `www.kaggleusercontent.com` bị chặn) nên chưa kiểm chứng trực tiếp bằng `gradnorm_kd`.
+
+## Bước tiếp
+Chuyển sang plan item **C (DKD)**: [2026-11-03_c_dkd.md](2026-11-03_c_dkd.md).
 
 ## Trạng thái
-LS(T=4) xong (ở trên). LS-T2 submit 2026-11-02 ~20:10 UTC: notebook `streamlined-kd-cifar100-b-logit-std-t2` version 1, dataset attach đã xác minh, RUNNING (>2 phút). Chưa có kết quả. Xem EXPERIMENT_HANDOFF.md (mục "TRẠNG THÁI HIỆN TẠI").
+B hoàn tất (LS T=4 và T=2). Xem EXPERIMENT_HANDOFF.md (mục "TRẠNG THÁI HIỆN TẠI").
