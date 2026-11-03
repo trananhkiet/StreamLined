@@ -64,6 +64,12 @@ Ghi chú: session tự động (scheduler v5); không hỏi lại.
   Đây là blocker môi trường, không phải lỗi code; sửa code không giúp được.
 - Theo quy tắc: không tự chuyển sang tài khoản 1, không đổi image. Lần thử này ghi là **retry 0/3** (blocker quyền, không phải lỗi run).
 
+## E1 — lần submit 2 (2026-11-03 16:46 UTC): RUNNING trên GPU
+- Người dùng đã xử lý quyền GPU của tài khoản 2. Push lại cùng notebook (không đổi nội dung) → **version 2**, cùng slug, code commit `82cbcbd`.
+- Xác minh: trạng thái RUNNING sau >4 phút (version 1 bị ERROR trước giây thứ 40), và quota GPU tài khoản 2 bắt đầu bị trừ (0.07h dùng lúc 16:50 UTC) → kernel chạy trên GPU.
+  Dataset và Docker image đã xác minh ở version 1 (cùng metadata).
+- Lần submit 1 (ERROR vì không có GPU) không tính là retry.
+
 ## Trạng thái
-BLOCKER: tài khoản 2 không được cấp GPU. Cách resume: người dùng xác minh số điện thoại cho tài khoản `kitit5512trn` (Kaggle → Settings → Phone verification), hoặc chỉ định dùng lại tài khoản 1.
-Sau đó submit lại E1 với cùng notebook `kaggle/experiments/e1_step80_150_200.ipynb` (`kaggle kernels push` tạo version mới của cùng slug).
+E1 đang chạy: https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-e1-step80-150-200 (version 2, submit ~2026-11-03 16:46 UTC). Dự kiến xong ~20:45 UTC.
+**Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.**

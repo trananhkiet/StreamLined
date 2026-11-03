@@ -1,6 +1,6 @@
 # SKD experiment handoff
 
-Updated: 2026-11-03 16:35 UTC (trigger v5, E1 bị chặn: tài khoản 2 không có GPU).
+Updated: 2026-11-03 16:52 UTC (E1 đang chạy trên tài khoản 2).
 
 ## Mục tiêu và trạng thái
 
@@ -341,10 +341,19 @@ Kaggle MCP trong session đã chuyển sang tài khoản 2. Các run cũ ở tà
 (xác minh dataset attach và Docker image ghim dùng được; nếu image bị từ chối thì dừng và ghi blocker, không tự đổi image).
 
 
-### BLOCKER E1 (2026-11-03 16:35 UTC) — đọc trước khi làm gì tiếp
+### (Đã gỡ) Blocker E1 lúc 2026-11-03 16:35 UTC — tài khoản 2 không có GPU; người dùng đã xử lý, xem mục bên dưới
 - Code E đã xong và test (commit `82cbcbd`: env `SEED`, `LEARNING_RATE`, `LR_MILESTONES`; mặc định bit-exact; bảng LR 240 epoch khớp bảng tính tay). Notebook E1: `kaggle/experiments/e1_step80_150_200.ipynb`.
 - Submit E1 lên tài khoản 2 (https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-e1-step80-150-200, version 1): dataset + Docker image ghim OK, nhưng kernel chạy **`device: cpu`** và tự dừng sau ~38 giây
   (kiểm tra GPU của script). Không tốn GPU quota.
 - Nguyên nhân khả dĩ nhất: tài khoản `kitit5512trn` chưa được bật GPU (thường do chưa xác minh số điện thoại). **Người dùng cần**: xác minh số điện thoại trên Kaggle cho tài khoản 2, hoặc chỉ định dùng lại tài khoản 1 (`trananhkiet`, còn 3,12h tới 2026-11-07).
 - Việc ở lần trigger tiếp theo: thử push lại E1 **một lần** (chi phí ~1 phút CPU, không tốn GPU) và kiểm tra log có `device: cuda` không.
   Nếu vẫn `device: cpu` → ghi "vẫn chặn" (không commit lặp lại nếu không có gì mới) và kết thúc; không tự chuyển tài khoản. Sau 3 lần vẫn chặn → dừng thử, chờ người dùng.
+
+
+### E1 ĐÃ SUBMIT (đang chạy) — cập nhật 2026-11-03 16:52 UTC
+- Run: **E1** = run B nhưng `LR_MILESTONES=80,150,200` (LR 0.1, gamma 0.1). Notebook `kaggle/experiments/e1_step80_150_200.ipynb`, code commit `82cbcbd`.
+- Kaggle (tài khoản 2): https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-e1-step80-150-200 — **version 2**, submit ~16:46 UTC, RUNNING trên GPU
+  (quota tài khoản 2 bắt đầu bị trừ). Version 1 trước đó ERROR vì chưa có GPU (blocker quyền, không tính retry).
+- Quota tài khoản 2: 0.07h/30h dùng lúc 16:50 UTC (refresh 2026-11-07 00:00 UTC).
+- **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.** Dự kiến xong ~20:45 UTC (trước lần trigger 00:27 UTC). Khi COMPLETE: đọc log bằng
+  `KAGGLE_API_TOKEN="$KAGGLE_KEY2" kaggle kernels logs kitit5512trn/streamlined-kd-cifar100-e1-step80-150-200` (lọc dòng `epoch ...` và summary JSON), ghi kết quả, rồi build và submit **E2** (`LEARNING_RATE=0.05`).
