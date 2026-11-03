@@ -1,6 +1,6 @@
 # SKD experiment handoff
 
-Updated: 2026-11-02 20:15 UTC (trigger tự động v5).
+Updated: 2026-11-03 04:15 UTC (trigger tự động v5).
 
 ## Mục tiêu và trạng thái
 
@@ -18,6 +18,7 @@ Tikhonov `0.1`, chạy trên Kaggle T4.
 | A3-bc0 (lambda_bc=0, nền B) | 0.5/0.5 | 71.59% | 70.03% (epoch 236) | 69.85% |
 | A3-bc2 (lambda_bc=2.0, nền B) | 0.5/0.5 | 71.59% | 70.31% (epoch 239) | 69.86% |
 | LS — logit standardization, T=4 (nền B) | 0.5/0.5 | 71.59% | 68.87% (epoch 228) | 68.60% |
+| LS-T2 — logit standardization, T=2 (nền B) | 0.5/0.5 | 71.59% | 69.30% (epoch 230) | 68.96% |
 | Paper | — | 72.40% | 72.50% | — |
 
 Run B cải thiện `+1.77` điểm so với A nhưng còn thấp hơn paper `2.24` điểm.
@@ -255,7 +256,7 @@ Tổng kết A1/A2/A3: chưa hướng nào vượt rõ run B (70.26/70.04); ch�
   C (DKD): `L = CE + w(t)*(alpha*TCKD + beta*NCKD)`, bỏ KL cũ và BC; `alpha=1, beta=2, T=4, w(t)=min(epoch/20,1)`, LR 0.1; log TCKD/NCKD riêng; không dùng defaults `Distiller/DKD.py` local (có clamp logits). Nếu ERROR: đọc log, retry 1/3.
 
 
-## TRẠNG THÁI HIỆN TẠI (cập nhật 2026-11-02 20:15 UTC = 03:15 giờ Sài Gòn 2026-11-03) — đọc mục này trước
+## (Lịch sử) Trạng thái 2026-11-02 20:15 UTC — đã được thay bằng mục TRẠNG THÁI HIỆN TẠI ở cuối file
 
 **LS (Logit Standardization, T=4) COMPLETE — kết quả âm rõ:** best **68.87%** (epoch 228), final **68.60%**, top-5 91.84%, test loss 1.0742, runtime 13.820 s (~3,84 giờ).
 So với run B: **−1,39 best / −1,44 final** (top-5 −0,48), lớn hơn nhiều nhiễu seed (~0,3). Nghi ngờ chính là thang KD nhỏ đi sau chuẩn hóa ở T=4 (KD yếu đi gần như giảm `kd_weight`), không nhất thiết do ý tưởng chuẩn hóa.
@@ -271,3 +272,22 @@ Chi tiết: [experiments/2026-11-02_b_logit_standardization.md](experiments/2026
   - Nếu LS-T2 ≥ run B (70.26/70.04) hoặc cải thiện rõ so với LS(T=4): ghi nhận hướng có hiệu quả khi KD đủ mạnh; có thể thử thêm T=1 sau C nếu quota cho phép.
   - Nếu LS-T2 vẫn kém B nhiều (> ~0,5 điểm): kết luận LS không hợp recipe CE/KD 0.5/0.5 (tăng `kd_weight` sẽ là yếu tố thứ hai, ngoài phạm vi "một yếu tố/lần"; ghi vào bài học như hướng chưa thử) rồi sang **C (DKD)**.
   - **C (DKD)** cần implement mới: `L = CE + w(t)*(alpha*TCKD + beta*NCKD)`, bỏ KL cũ và BC; `alpha=1, beta=2, T=4, w(t)=min(epoch/20,1)`, giữ LR 0.1 của B. Theo mdistiller (megvii-research) `DKD` trong `mdistiller/distillers/DKD.py`: `gt_mask` one-hot theo nhãn; `TCKD` = KL giữa phân phối nhị phân [p_target, 1-p_target] của teacher và student (cả hai softmax(·/T)) × T²; `NCKD` = KL giữa phân phối trên các class non-target sau khi trừ logit target (`logits - 1000*gt_mask`) × T²; `loss = w*(alpha*TCKD + beta*NCKD)`. Không dùng defaults `Distiller/DKD.py` local (có clamp logits, CE/alpha/beta khác upstream). Log TCKD/NCKD riêng. Test hồi quy CPU: các chế độ cũ phải giữ bit-exact. Nếu ERROR: đọc log, retry 1/3.
+
+
+## TRẠNG THÁI HIỆN TẠI (cập nhật 2026-11-03 04:15 UTC = 11:15 giờ Sài Gòn) — đọc mục này trước
+
+**B (Logit Standardization) HOÀN TẤT — không cải thiện.** LS-T2 (T=2): best **69.30%** (epoch 230), final **68.96%**, top-5 92.16%, test loss 1.0571, runtime 14.006 s (~3,89 giờ).
+So với LS(T=4) (68.87/68.60): +0,43 / +0,36; so với run B (70.26/70.04): **−0,96 / −1,08**. Hạ T thu hồi một phần nhưng LS vẫn kém B gần 1 điểm trong recipe CE/KD 0.5/0.5.
+Chưa thử (ưu tiên thấp, ngoài phạm vi một yếu tố/lần): T=1; tăng `kd_weight` để bù thang. Chi tiết: [experiments/2026-11-02_b_logit_standardization.md](experiments/2026-11-02_b_logit_standardization.md).
+
+**C (DKD) ĐÃ SUBMIT (đang chạy):**
+- Experiment: **C** = `LOSS_MODE=dkd`: `L = 1.0*CE + min(epoch/20,1)*(1.0*TCKD + 2.0*NCKD)`, bỏ KL+BC, T=4, LR 0.1 (ablation, không phải reproduce đầy đủ với LR 0.05). Đối chứng: run B. Log: [experiments/2026-11-03_c_dkd.md](experiments/2026-11-03_c_dkd.md).
+- Code: Git commit `901ffec` (`kaggle/streamlined_kd_cifar100.py`: thêm `LOSS_MODE`, `dkd_terms`, `DKD_*`; notebook `kaggle/experiments/c_dkd.ipynb`). Test CPU: 7 chế độ cũ bit-exact; DKD khớp bản tham chiếu mdistiller đến 6 chữ số; warm-up đúng.
+- Notebook: https://www.kaggle.com/code/trananhkiet/streamlined-kd-cifar100-c-dkd — **version 1**, submit 2026-11-03 ~04:10 UTC, T4, dataset `fedesoriano/cifar100` đã xác minh bằng `kaggle kernels pull -m`, RUNNING sau >2 phút.
+- Quota GPU: đã dùng 23,49h trước khi submit; còn ~6,5h/30h (refresh 2026-11-07 00:00 UTC). Sau C (~3,5–4h) còn khoảng 2,5h.
+- Việc cần làm ở lần trigger tiếp theo (19:00 giờ Sài Gòn 2026-11-03): **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.** Dự kiến xong ~08:00 UTC. Nếu COMPLETE: lấy kết quả bằng MCP `list_notebook_session_output`, ghi vào file C, so với run B (70.26/70.04). Nếu loss ra NaN/phân kỳ sớm (test top-1 ~1% kéo dài): ghi lại, cân nhắc LR 0.05 (đúng config gốc) như run thứ hai nếu quota cho phép.
+  Nếu DKD tốt: plan nói "chạy DKD+BC để đo phần đóng góp của SKD" (thêm BC vào DKD) — chỉ làm nếu còn quota; ưu tiên D sau khi quota refresh.
+
+**D (DOT) — kế hoạch, KHÔNG đủ quota trước refresh 2026-11-07 00:00 UTC (chạy cần ~5–6h GPU):**
+- Trong lúc chờ quota, các lần trigger sau CÓ THỂ chuẩn bị code D trên CPU (không tốn GPU): lấy implementation gốc [`mdistiller/engine/dot.py`](https://github.com/megvii-research/mdistiller/blob/master/mdistiller/engine/dot.py) (raw.githubusercontent.com truy cập được), tích hợp vào trainer: `L_task = CE`, `L_distill = KD + BC` (loss SKD của run B), backward riêng cho từng loss, giữ hai buffer momentum riêng theo DOT, lưu cả hai buffer để resume; so với cùng loss dùng SGD (run B). Log cosine giữa hai gradient, accuracy, thời gian/epoch.
+- Test CPU hồi quy: các chế độ cũ phải giữ bit-exact (như đã làm ở A3/LS/C). Chỉ submit D sau khi quota refresh (kiểm tra `kaggle quota`: cần còn ≥ 6h). Trước refresh, nếu không còn việc GPU nào khác: ghi "chờ refresh quota" vào HANDOFF và kết thúc, không tự mở rộng ngân sách.
