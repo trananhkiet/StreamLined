@@ -1,6 +1,6 @@
 # SKD experiment handoff
 
-Updated: 2026-11-03 04:15 UTC (trigger tự động v5).
+Updated: 2026-11-03 12:45 UTC (trigger tự động v5).
 
 ## Mục tiêu và trạng thái
 
@@ -19,6 +19,7 @@ Tikhonov `0.1`, chạy trên Kaggle T4.
 | A3-bc2 (lambda_bc=2.0, nền B) | 0.5/0.5 | 71.59% | 70.31% (epoch 239) | 69.86% |
 | LS — logit standardization, T=4 (nền B) | 0.5/0.5 | 71.59% | 68.87% (epoch 228) | 68.60% |
 | LS-T2 — logit standardization, T=2 (nền B) | 0.5/0.5 | 71.59% | 69.30% (epoch 230) | 68.96% |
+| C — DKD (LR 0.1, CE 1.0, alpha 1, beta 2) | — | 71.59% | 69.74% (epoch 234) | 69.51% |
 | Paper | — | 72.40% | 72.50% | — |
 
 Run B cải thiện `+1.77` điểm so với A nhưng còn thấp hơn paper `2.24` điểm.
@@ -274,7 +275,7 @@ Chi tiết: [experiments/2026-11-02_b_logit_standardization.md](experiments/2026
   - **C (DKD)** cần implement mới: `L = CE + w(t)*(alpha*TCKD + beta*NCKD)`, bỏ KL cũ và BC; `alpha=1, beta=2, T=4, w(t)=min(epoch/20,1)`, giữ LR 0.1 của B. Theo mdistiller (megvii-research) `DKD` trong `mdistiller/distillers/DKD.py`: `gt_mask` one-hot theo nhãn; `TCKD` = KL giữa phân phối nhị phân [p_target, 1-p_target] của teacher và student (cả hai softmax(·/T)) × T²; `NCKD` = KL giữa phân phối trên các class non-target sau khi trừ logit target (`logits - 1000*gt_mask`) × T²; `loss = w*(alpha*TCKD + beta*NCKD)`. Không dùng defaults `Distiller/DKD.py` local (có clamp logits, CE/alpha/beta khác upstream). Log TCKD/NCKD riêng. Test hồi quy CPU: các chế độ cũ phải giữ bit-exact. Nếu ERROR: đọc log, retry 1/3.
 
 
-## TRẠNG THÁI HIỆN TẠI (cập nhật 2026-11-03 04:15 UTC = 11:15 giờ Sài Gòn) — đọc mục này trước
+## (Lịch sử) Trạng thái 2026-11-03 04:15 UTC — đã được thay bằng mục TRẠNG THÁI HIỆN TẠI ở cuối file
 
 **B (Logit Standardization) HOÀN TẤT — không cải thiện.** LS-T2 (T=2): best **69.30%** (epoch 230), final **68.96%**, top-5 92.16%, test loss 1.0571, runtime 14.006 s (~3,89 giờ).
 So với LS(T=4) (68.87/68.60): +0,43 / +0,36; so với run B (70.26/70.04): **−0,96 / −1,08**. Hạ T thu hồi một phần nhưng LS vẫn kém B gần 1 điểm trong recipe CE/KD 0.5/0.5.
@@ -291,3 +292,32 @@ Chưa thử (ưu tiên thấp, ngoài phạm vi một yếu tố/lần): T=1; t�
 **D (DOT) — kế hoạch, KHÔNG đủ quota trước refresh 2026-11-07 00:00 UTC (chạy cần ~5–6h GPU):**
 - Trong lúc chờ quota, các lần trigger sau CÓ THỂ chuẩn bị code D trên CPU (không tốn GPU): lấy implementation gốc [`mdistiller/engine/dot.py`](https://github.com/megvii-research/mdistiller/blob/master/mdistiller/engine/dot.py) (raw.githubusercontent.com truy cập được), tích hợp vào trainer: `L_task = CE`, `L_distill = KD + BC` (loss SKD của run B), backward riêng cho từng loss, giữ hai buffer momentum riêng theo DOT, lưu cả hai buffer để resume; so với cùng loss dùng SGD (run B). Log cosine giữa hai gradient, accuracy, thời gian/epoch.
 - Test CPU hồi quy: các chế độ cũ phải giữ bit-exact (như đã làm ở A3/LS/C). Chỉ submit D sau khi quota refresh (kiểm tra `kaggle quota`: cần còn ≥ 6h). Trước refresh, nếu không còn việc GPU nào khác: ghi "chờ refresh quota" vào HANDOFF và kết thúc, không tự mở rộng ngân sách.
+
+
+## TRẠNG THÁI HIỆN TẠI (cập nhật 2026-11-03 12:45 UTC = 19:45 giờ Sài Gòn) — đọc mục này trước
+
+**C (DKD) COMPLETE:** best **69.74%** (epoch 234), final **69.51%**, top-5 92.22%, test loss 1.0836, runtime 12.176 s (~3,38 giờ, nhanh hơn run SKD ~12%).
+So với run B: **−0,52 best / −0,53 final** — không vượt B. Train top-1 cuối chỉ 64.91% (thấp hơn run SKD 1–2 điểm). Không phân kỳ. Chi tiết: [experiments/2026-11-03_c_dkd.md](experiments/2026-11-03_c_dkd.md).
+
+### Tổng kết tạm tất cả run (1 seed = 2021; baseline B vẫn tốt nhất; paper 72.50)
+| Run | Thay đổi so với B | Best | Final |
+|---|---|---:|---:|
+| B (mốc) | — | 70.26 | 70.04 |
+| A3-bc2 | `lambda_bc=2.0` | 70.31 | 69.86 |
+| A3-bc0 | `lambda_bc=0` | 70.03 | 69.85 |
+| A2 | KD per-sample, mask high-confidence | 69.76 | 69.57 |
+| C DKD | loss DKD (LR 0.1) | 69.74 | 69.51 |
+| LS-T2 | logit std, T=2 | 69.30 | 68.96 |
+| A1 | KD per-sample, mask low-confidence | 69.28 | 68.97 |
+| LS | logit std, T=4 | 68.87 | 68.60 |
+Kết luận tạm: không hướng nào trong A1/A2/A3/B/C vượt run B (khoảng cách tới paper ~2,2 điểm vẫn còn); nhiễu seed ước tính ~0,3 điểm nên A3 (BC) coi như không khác B.
+
+**D (DOT) — code ĐÃ CHUẨN BỊ, CHƯA SUBMIT (chờ quota):**
+- Quota GPU còn **3,12h/30h**, refresh **2026-11-07 00:00 UTC** (07:00 giờ Sài Gòn). D cần ~5–6h (hai lần backward mỗi iteration) nên không chạy được trước đó. Không submit run nào khác trong lúc chờ (không tự mở rộng ngân sách).
+- Code: Git commit `3c9fea4` — `OPTIM_MODE=dot` (+`DOT_DELTA=0.075`) với optimizer DOT chép nguyên từ mdistiller (MIT); notebook `kaggle/experiments/d_dot.ipynb` (default `OPTIM_MODE=dot`); log kế hoạch/giả thuyết/rủi ro: [experiments/2026-11-03_d_dot.md](experiments/2026-11-03_d_dot.md).
+  Test CPU: đường SGD bit-exact; DOT(delta=0) trùng SGD ở float64 (1.1e-15); optimizer state lưu/nạp đủ hai buffer.
+- **Việc cần làm ở các lần trigger tiếp theo:**
+  1. Chạy `kaggle quota` (và/hoặc MCP `get_accelerator_quota`). Nếu `remaining` < 6h: **không làm gì thêm, không commit**; trả lời ngắn "chờ refresh quota 2026-11-07" rồi kết thúc.
+  2. Nếu đã refresh (remaining ≥ 6h): `git fetch` + pull, submit D bằng CLI: slug `streamlined-kd-cifar100-d-dot`, notebook `kaggle/experiments/d_dot.ipynb`, metadata như các run trước (dataset `fedesoriano/cifar100`, docker image như run B, T4); xác minh dataset attach và RUNNING sau ~2 phút; cập nhật file D + HANDOFF; commit/push.
+  3. Khi D COMPLETE: ghi kết quả vào `experiments/2026-11-03_d_dot.md` (so với B; log cosine/gradnorm nếu lấy được `history.csv`), cập nhật bảng tổng kết ở trên. Nếu D phân kỳ (test top-1 ~1% kéo dài / NaN): ghi lại, cân nhắc LR 0.05 (cần thêm env `LEARNING_RATE`, mặc định 0.1 giữ nguyên bit) như lần thử thứ hai.
+  4. **Plan A1→A2→A3→B→C→D khi đó hoàn tất:** tổng hợp kết quả và bài học vào HANDOFF, rồi gọi `update_trigger` với `enabled=false` cho `trig_01Sh2GBEHeb1grKfyRJfr7nk`. Các hướng mở rộng chưa nằm trong plan (nhiều seed, DKD LR 0.05, DKD+BC, LS với `kd_weight` lớn, T=1) chỉ làm khi người dùng yêu cầu.
