@@ -33,14 +33,14 @@ from tqdm.auto import tqdm
 
 @dataclass(frozen=True)
 class Config:
-    seed: int = 2021
+    seed: int = int(os.getenv("SEED", "2021"))
     epochs: int = int(os.getenv("EPOCHS", "240"))
     batch_size: int = int(os.getenv("BATCH_SIZE", "64"))
     num_workers: int = int(os.getenv("NUM_WORKERS", "2"))
-    learning_rate: float = 0.1
+    learning_rate: float = float(os.getenv("LEARNING_RATE", "0.1"))
     momentum: float = 0.9
     weight_decay: float = 5e-4
-    lr_milestones: tuple[int, ...] = (150, 180, 210)
+    lr_milestones: tuple[int, ...] = tuple(int(m) for m in os.getenv("LR_MILESTONES", "150,180,210").split(","))
     temperature: float = float(os.getenv("TEMPERATURE", "4.0"))
     tik: float = 1e-1
     ce_weight: float = float(os.getenv("CE_WEIGHT", "0.5"))

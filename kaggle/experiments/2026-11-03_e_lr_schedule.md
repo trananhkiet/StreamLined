@@ -46,5 +46,14 @@ Test CPU trước khi submit: (1) mặc định cho trọng số bit-exact so v�
 - Lần submit đầu trên tài khoản 2 phải xác minh: dataset attach đúng và Docker image ghim của run B dùng được. Nếu image bị từ chối: dừng, ghi blocker, **không tự đổi image**.
 - Mỗi run ~3,9h GPU. E1 + E2 ≈ 8h, E3 ≈ 4–8h → tổng ≈ 12–16h, nằm trong 30h/tuần của tài khoản 2 (refresh 2026-11-07 00:00 UTC).
 
+## Implement và kiểm tra (2026-11-03, lần trigger 16:27 UTC)
+Ghi chú: session tự động (scheduler v5); không hỏi lại.
+- `kaggle/streamlined_kd_cifar100.py`: `SEED` (mặc định 2021), `LEARNING_RATE` (mặc định 0.1), `LR_MILESTONES` (mặc định `150,180,210`, parse thành tuple int) trong `Config`.
+  `SEED` đi qua mọi chỗ dùng `CFG.seed` (seed_everything, worker seed, generator của DataLoader, re-seed trước khi tạo student).
+- Test CPU: (1) `asdict(CFG)` mặc định giống hệt commit `561b5ea`; trọng số sau 2 epoch nhỏ trên dữ liệu giả **bit-exact** (sai lệch 0);
+  (2) chạy module trong interpreter mới với từng env và in LR của 240 epoch qua `MultiStepLR` như `run_experiment`, so với bảng tính tay: **khớp cả 240 epoch** cho
+  run B (0.1 → 0.01 từ ep151 → 0.001 từ ep181 → 0.0001 từ ep211), E1 (0.1 → 0.01 từ ep81 → 0.001 từ ep151 → 0.0001 từ ep201), E2 (0.05 → 0.005 từ ep151 → 0.0005 từ ep181 → 5e-5 từ ep211), seed 2022.
+- Notebook E1: `kaggle/experiments/e1_step80_150_200.ipynb`, khác notebook nền đúng một dòng (`LR_MILESTONES` mặc định `80,150,200`).
+
 ## Trạng thái
-Kế hoạch đã duyệt; chưa implement, chưa submit. Bước tiếp theo: thêm `LEARNING_RATE`/`LR_MILESTONES`/`SEED` + test, submit E1 trên tài khoản 2.
+Code + notebook E1 sẵn sàng; E1 sắp submit trên tài khoản 2. Xem EXPERIMENT_HANDOFF.md (mục "TRẠNG THÁI HIỆN TẠI").
