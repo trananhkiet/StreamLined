@@ -1,6 +1,6 @@
 # SKD experiment handoff
 
-Updated: 2026-11-03 12:45 UTC (trigger tự động v5).
+Updated: 2026-11-03 (kế hoạch E do người dùng duyệt).
 
 ## Mục tiêu và trạng thái
 
@@ -294,7 +294,7 @@ Chưa thử (ưu tiên thấp, ngoài phạm vi một yếu tố/lần): T=1; t�
 - Test CPU hồi quy: các chế độ cũ phải giữ bit-exact (như đã làm ở A3/LS/C). Chỉ submit D sau khi quota refresh (kiểm tra `kaggle quota`: cần còn ≥ 6h). Trước refresh, nếu không còn việc GPU nào khác: ghi "chờ refresh quota" vào HANDOFF và kết thúc, không tự mở rộng ngân sách.
 
 
-## TRẠNG THÁI HIỆN TẠI (cập nhật 2026-11-03 12:45 UTC = 19:45 giờ Sài Gòn) — đọc mục này trước
+## (Lịch sử) Trạng thái 2026-11-03 12:45 UTC — đã được thay bằng mục TRẠNG THÁI HIỆN TẠI ở cuối file (D tạm dừng, chuyển sang kế hoạch E)
 
 **C (DKD) COMPLETE:** best **69.74%** (epoch 234), final **69.51%**, top-5 92.22%, test loss 1.0836, runtime 12.176 s (~3,38 giờ, nhanh hơn run SKD ~12%).
 So với run B: **−0,52 best / −0,53 final** — không vượt B. Train top-1 cuối chỉ 64.91% (thấp hơn run SKD 1–2 điểm). Không phân kỳ. Chi tiết: [experiments/2026-11-03_c_dkd.md](experiments/2026-11-03_c_dkd.md).
@@ -321,3 +321,21 @@ Kết luận tạm: không hướng nào trong A1/A2/A3/B/C vượt run B (kho�
   2. Nếu đã refresh (remaining ≥ 6h): `git fetch` + pull, submit D bằng CLI: slug `streamlined-kd-cifar100-d-dot`, notebook `kaggle/experiments/d_dot.ipynb`, metadata như các run trước (dataset `fedesoriano/cifar100`, docker image như run B, T4); xác minh dataset attach và RUNNING sau ~2 phút; cập nhật file D + HANDOFF; commit/push.
   3. Khi D COMPLETE: ghi kết quả vào `experiments/2026-11-03_d_dot.md` (so với B; log cosine/gradnorm nếu lấy được `history.csv`), cập nhật bảng tổng kết ở trên. Nếu D phân kỳ (test top-1 ~1% kéo dài / NaN): ghi lại, cân nhắc LR 0.05 (cần thêm env `LEARNING_RATE`, mặc định 0.1 giữ nguyên bit) như lần thử thứ hai.
   4. **Plan A1→A2→A3→B→C→D khi đó hoàn tất:** tổng hợp kết quả và bài học vào HANDOFF, rồi gọi `update_trigger` với `enabled=false` cho `trig_01Sh2GBEHeb1grKfyRJfr7nk`. Các hướng mở rộng chưa nằm trong plan (nhiều seed, DKD LR 0.05, DKD+BC, LS với `kd_weight` lớn, T=1) chỉ làm khi người dùng yêu cầu.
+
+
+## TRẠNG THÁI HIỆN TẠI (cập nhật 2026-11-03, theo quyết định của người dùng) — đọc mục này trước
+
+**Thứ tự chạy mới (người dùng chỉ định, thay cho D): E1 → E2 → E3.** Plan A1→A2→A3→B→C đã xong (bảng tổng kết ở mục trước); **D (DOT) tạm dừng**,
+code sẵn sàng ở commit `3c9fea4`, chỉ chạy lại khi người dùng yêu cầu.
+
+**E — lịch learning rate, nền run B** (chi tiết, luật quyết định, ngân sách: [experiments/2026-11-03_e_lr_schedule.md](experiments/2026-11-03_e_lr_schedule.md)):
+- **E1**: step LR 0.1, giảm ×0.1 ở epoch 80/150/200.
+- **E2**: LR 0.05, lịch cũ 150/180/210.
+- **E3**: seed 2022 cho ứng viên tốt nhất (nếu hơn run B ≥ 0,5 điểm ở epoch 240) và cho run B; nếu không có ứng viên đạt ngưỡng thì chỉ chạy run B seed 2022 để đo nhiễu.
+- Đã bỏ: cosine annealing + warmup 5 epoch.
+
+**Tài khoản Kaggle:** từ kế hoạch E chạy trên **tài khoản 2 `kitit5512trn`** (`KAGGLE_USERNAME2`/`KAGGLE_KEY2`; CLI: `export KAGGLE_API_TOKEN="$KAGGLE_KEY2"`; quota 30h, refresh 2026-11-07).
+Kaggle MCP trong session đã chuyển sang tài khoản 2. Các run cũ ở tài khoản 1 `trananhkiet` đọc bằng CLI với `KAGGLE_KEY`.
+
+**Việc cần làm tiếp theo:** thêm env `LEARNING_RATE`, `LR_MILESTONES`, `SEED` (mặc định giữ nguyên bit như run B) + test CPU, build notebook E1, submit E1 trên tài khoản 2
+(xác minh dataset attach và Docker image ghim dùng được; nếu image bị từ chối thì dừng và ghi blocker, không tự đổi image).
