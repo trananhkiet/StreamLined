@@ -55,5 +55,15 @@ Ghi chú: session tự động (scheduler v5); không hỏi lại.
   run B (0.1 → 0.01 từ ep151 → 0.001 từ ep181 → 0.0001 từ ep211), E1 (0.1 → 0.01 từ ep81 → 0.001 từ ep151 → 0.0001 từ ep201), E2 (0.05 → 0.005 từ ep151 → 0.0005 từ ep181 → 5e-5 từ ep211), seed 2022.
 - Notebook E1: `kaggle/experiments/e1_step80_150_200.ipynb`, khác notebook nền đúng một dòng (`LR_MILESTONES` mặc định `80,150,200`).
 
+## E1 — lần submit 1 (2026-11-03 16:30 UTC): ERROR, BLOCKER tài khoản 2 không có GPU
+- Notebook: https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-e1-step80-150-200 — version 1, code commit `82cbcbd`.
+- `kaggle kernels pull -m` xác nhận `dataset_sources=["fedesoriano/cifar100"]`, `docker_image` đúng bản ghim của run B, `machine_shape=NvidiaTeslaT4` → **dataset và Docker image dùng được trên tài khoản 2**.
+- Log: `PyTorch: 2.11.0+cu128`, **`device: cpu`**, rồi script tự dừng sau ~38 giây ở kiểm tra GPU
+  (`RuntimeError: This 240-epoch experiment requires a Kaggle GPU`). Không train trên CPU, không tốn GPU quota.
+- Nguyên nhân khả dĩ nhất (chưa xác minh trực tiếp): tài khoản 2 chưa được bật GPU — thường do **chưa xác minh số điện thoại** trên Kaggle (GPU/TPU chỉ dùng được sau khi verify).
+  Đây là blocker môi trường, không phải lỗi code; sửa code không giúp được.
+- Theo quy tắc: không tự chuyển sang tài khoản 1, không đổi image. Lần thử này ghi là **retry 0/3** (blocker quyền, không phải lỗi run).
+
 ## Trạng thái
-Code + notebook E1 sẵn sàng; E1 sắp submit trên tài khoản 2. Xem EXPERIMENT_HANDOFF.md (mục "TRẠNG THÁI HIỆN TẠI").
+BLOCKER: tài khoản 2 không được cấp GPU. Cách resume: người dùng xác minh số điện thoại cho tài khoản `kitit5512trn` (Kaggle → Settings → Phone verification), hoặc chỉ định dùng lại tài khoản 1.
+Sau đó submit lại E1 với cùng notebook `kaggle/experiments/e1_step80_150_200.ipynb` (`kaggle kernels push` tạo version mới của cùng slug).

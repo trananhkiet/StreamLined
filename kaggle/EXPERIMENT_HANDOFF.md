@@ -1,6 +1,6 @@
 # SKD experiment handoff
 
-Updated: 2026-11-03 (kế hoạch E do người dùng duyệt).
+Updated: 2026-11-03 16:35 UTC (trigger v5, E1 bị chặn: tài khoản 2 không có GPU).
 
 ## Mục tiêu và trạng thái
 
@@ -339,3 +339,12 @@ Kaggle MCP trong session đã chuyển sang tài khoản 2. Các run cũ ở tà
 
 **Việc cần làm tiếp theo:** thêm env `LEARNING_RATE`, `LR_MILESTONES`, `SEED` (mặc định giữ nguyên bit như run B) + test CPU, build notebook E1, submit E1 trên tài khoản 2
 (xác minh dataset attach và Docker image ghim dùng được; nếu image bị từ chối thì dừng và ghi blocker, không tự đổi image).
+
+
+### BLOCKER E1 (2026-11-03 16:35 UTC) — đọc trước khi làm gì tiếp
+- Code E đã xong và test (commit `82cbcbd`: env `SEED`, `LEARNING_RATE`, `LR_MILESTONES`; mặc định bit-exact; bảng LR 240 epoch khớp bảng tính tay). Notebook E1: `kaggle/experiments/e1_step80_150_200.ipynb`.
+- Submit E1 lên tài khoản 2 (https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-e1-step80-150-200, version 1): dataset + Docker image ghim OK, nhưng kernel chạy **`device: cpu`** và tự dừng sau ~38 giây
+  (kiểm tra GPU của script). Không tốn GPU quota.
+- Nguyên nhân khả dĩ nhất: tài khoản `kitit5512trn` chưa được bật GPU (thường do chưa xác minh số điện thoại). **Người dùng cần**: xác minh số điện thoại trên Kaggle cho tài khoản 2, hoặc chỉ định dùng lại tài khoản 1 (`trananhkiet`, còn 3,12h tới 2026-11-07).
+- Việc ở lần trigger tiếp theo: thử push lại E1 **một lần** (chi phí ~1 phút CPU, không tốn GPU) và kiểm tra log có `device: cuda` không.
+  Nếu vẫn `device: cpu` → ghi "vẫn chặn" (không commit lặp lại nếu không có gì mới) và kết thúc; không tự chuyển tài khoản. Sau 3 lần vẫn chặn → dừng thử, chờ người dùng.
