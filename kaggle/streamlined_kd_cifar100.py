@@ -66,6 +66,11 @@ class Config:
     dkd_beta: float = float(os.getenv("DKD_BETA", "2.0"))
     dkd_warmup: int = int(os.getenv("DKD_WARMUP", "20"))
     dkd_ce_weight: float = float(os.getenv("DKD_CE_WEIGHT", "1.0"))
+    # Plan item "D" (DOT, Wang et al. ICCV 2023): "dot" keeps SEPARATE momentum buffers for the task loss (CE) and the
+    # distillation loss (KD + BC), with momentum 0.9 -/+ dot_delta, following megvii-research/mdistiller (DELTA 0.075).
+    # "sgd" (default) is the plain optimizer used by every previous experiment.
+    optim_mode: str = os.getenv("OPTIM_MODE", "sgd")
+    dot_delta: float = float(os.getenv("DOT_DELTA", "0.075"))
     # Every N batches log the L2 norm of d(loss term)/d(last-layer weight) for CE/KD/BC (0 disables).
     grad_log_every: int = int(os.getenv("GRAD_LOG_EVERY", "100"))
 
@@ -535,6 +540,129 @@ def evaluate(model: nn.Module, loader: DataLoader, limit_batches: int = 0) -> di
     }
 
 
+# --- Distillation-Oriented Trainer (DOT) ---
+# Vendored from megvii-research/mdistiller `mdistiller/engine/dot.py` (MIT license) so the notebook stays self-contained.
+# Only change: the unused `torch.optim._functional` import is dropped (it no longer exists in recent PyTorch).
+def _check_in(t, tensors):
+    for i in tensors:
+        if t is i:
+            return True
+    return False
+
+
+def _dot_update(params, d_p_list, momentum_buffer_list, kd_grad_buffer, kd_momentum_buffer, kd_params,
+                *, weight_decay, momentum, momentum_kd, lr, dampening):
+    for i, param in enumerate(params):
+        d_p = d_p_list[i]
+        if weight_decay != 0:
+            d_p = d_p.add(param, alpha=weight_decay)
+        if momentum != 0:
+            buf = momentum_buffer_list[i]
+            if buf is None:
+                buf = torch.clone(d_p).detach()
+                momentum_buffer_list[i] = buf
+            elif _check_in(param, kd_params):
+                buf.mul_(momentum).add_(d_p, alpha=1 - dampening)
+            else:
+                buf.mul_((momentum_kd + momentum) / 2.0).add_(d_p, alpha=1 - dampening)
+            d_p = buf
+        # update params with task-loss grad
+        param.add_(d_p, alpha=-lr)
+
+    for i, (d_p, buf, p) in enumerate(zip(kd_grad_buffer, kd_momentum_buffer, kd_params)):
+        # update params with kd-loss grad
+        if buf is None:
+            buf = torch.clone(d_p).detach()
+            kd_momentum_buffer[i] = buf
+        elif _check_in(p, params):
+            buf.mul_(momentum_kd).add_(d_p, alpha=1 - dampening)
+        else:
+            if weight_decay != 0:
+                d_p = d_p.add(p, alpha=weight_decay)
+            buf.mul_((momentum_kd + momentum) / 2.0).add_(d_p, alpha=1 - dampening)
+        p.add_(buf, alpha=-lr)
+
+
+class DistillationOrientedTrainer(torch.optim.Optimizer):
+    """Usage per iteration: zero_grad; loss_kd.backward(retain_graph=True); step_kd(); zero_grad; loss_task.backward(); step()."""
+
+    def __init__(self, params, lr, momentum=0, momentum_kd=0, dampening=0, weight_decay=0):
+        if lr < 0.0:
+            raise ValueError(f"Invalid learning rate: {lr}")
+        if momentum < 0.0 or momentum_kd < 0.0:
+            raise ValueError("Invalid momentum value")
+        if weight_decay < 0.0:
+            raise ValueError(f"Invalid weight_decay value: {weight_decay}")
+        defaults = dict(lr=lr, momentum=momentum, momentum_kd=momentum_kd, dampening=dampening, weight_decay=weight_decay)
+        self.kd_grad_buffer = []
+        self.kd_grad_params = []
+        self.kd_momentum_buffer = []
+        super().__init__(params, defaults)
+
+    @torch.no_grad()
+    def step_kd(self, closure=None):
+        loss = None
+        if closure is not None:
+            with torch.enable_grad():
+                loss = closure()
+        assert len(self.param_groups) == 1, "Only implemented for one parameter group."
+        for group in self.param_groups:
+            params_with_grad, d_p_list, momentum_kd_buffer_list = [], [], []
+            for p in group["params"]:
+                if p.grad is not None:
+                    params_with_grad.append(p)
+                    d_p_list.append(p.grad)
+                    state = self.state[p]
+                    momentum_kd_buffer_list.append(state.get("momentum_kd_buffer"))
+        self.kd_momentum_buffer = momentum_kd_buffer_list
+        self.kd_grad_buffer = d_p_list
+        self.kd_grad_params = params_with_grad
+        return loss
+
+    @torch.no_grad()
+    def step(self, closure=None):
+        loss = None
+        if closure is not None:
+            with torch.enable_grad():
+                loss = closure()
+        assert len(self.param_groups) == 1, "Only implemented for one parameter group."
+        for group in self.param_groups:
+            params_with_grad, d_p_list, momentum_buffer_list = [], [], []
+            for p in group["params"]:
+                if p.grad is not None:
+                    params_with_grad.append(p)
+                    d_p_list.append(p.grad)
+                    momentum_buffer_list.append(self.state[p].get("momentum_buffer"))
+            _dot_update(
+                params_with_grad, d_p_list, momentum_buffer_list, self.kd_grad_buffer, self.kd_momentum_buffer, self.kd_grad_params,
+                weight_decay=group["weight_decay"], momentum=group["momentum"], momentum_kd=group["momentum_kd"],
+                lr=group["lr"], dampening=group["dampening"],
+            )
+            for p, momentum_buffer in zip(params_with_grad, momentum_buffer_list):
+                self.state[p]["momentum_buffer"] = momentum_buffer
+            for p, momentum_kd_buffer in zip(self.kd_grad_params, self.kd_momentum_buffer):
+                self.state[p]["momentum_kd_buffer"] = momentum_kd_buffer
+            self.kd_grad_buffer = []
+            self.kd_grad_params = []
+            self.kd_momentum_buffer = []
+        return loss
+
+
+DOT_STATS = {"cosine": 0.0, "count": 0.0}
+
+
+def pop_dot_stats() -> dict[str, float]:
+    """Mean cosine between the task (CE) and distillation (KD+BC) gradients of ALL parameters, since the last call."""
+    stats = {"dot_grad_cosine": DOT_STATS["cosine"] / max(DOT_STATS["count"], 1.0)}
+    for key in DOT_STATS:
+        DOT_STATS[key] = 0.0
+    return stats
+
+
+def _flat_grad(parameters) -> torch.Tensor:
+    return torch.cat([p.grad.detach().reshape(-1) for p in parameters if p.grad is not None])
+
+
 def train_one_epoch(student: nn.Module, teacher: nn.Module, loader: DataLoader, optimizer: torch.optim.Optimizer) -> dict[str, float]:
     student.train()
     teacher.eval()
@@ -552,9 +680,27 @@ def train_one_epoch(student: nn.Module, teacher: nn.Module, loader: DataLoader, 
         if CFG.grad_log_every and batch_index % CFG.grad_log_every == 0:
             probe_last_layer_grads(student, student_logits, teacher_logits, labels)
         loss = sum(losses.values())
-        optimizer.zero_grad(set_to_none=True)
-        loss.backward()
-        optimizer.step()
+        if CFG.optim_mode == "dot":
+            # DOT: task loss (CE) and distillation loss (KD + BC) get their own backward pass and momentum buffer.
+            loss_task = losses["ce"]
+            loss_distill = losses["kd"] + losses["bc"]
+            optimizer.zero_grad(set_to_none=True)
+            loss_distill.backward(retain_graph=True)
+            probe_cosine = bool(CFG.grad_log_every) and batch_index % CFG.grad_log_every == 0
+            if probe_cosine:
+                distill_grad = _flat_grad(student.parameters()).clone()
+            optimizer.step_kd()
+            optimizer.zero_grad(set_to_none=True)
+            loss_task.backward()
+            if probe_cosine:
+                task_grad = _flat_grad(student.parameters())
+                DOT_STATS["cosine"] += F.cosine_similarity(task_grad, distill_grad, dim=0).item()
+                DOT_STATS["count"] += 1.0
+            optimizer.step()
+        else:
+            optimizer.zero_grad(set_to_none=True)
+            loss.backward()
+            optimizer.step()
 
         batch_size = labels.size(0)
         totals["loss"] += loss.item() * batch_size
@@ -628,9 +774,15 @@ def run_experiment() -> dict[str, object]:
     # Re-seed after teacher validation so student initialization is independent of loader iteration.
     seed_everything(CFG.seed)
     student = resnet20().to(DEVICE)
-    optimizer = torch.optim.SGD(
-        student.parameters(), lr=CFG.learning_rate, momentum=CFG.momentum, weight_decay=CFG.weight_decay
-    )
+    if CFG.optim_mode == "dot":
+        optimizer = DistillationOrientedTrainer(
+            student.parameters(), lr=CFG.learning_rate, momentum=CFG.momentum - CFG.dot_delta,
+            momentum_kd=CFG.momentum + CFG.dot_delta, weight_decay=CFG.weight_decay,
+        )
+    else:
+        optimizer = torch.optim.SGD(
+            student.parameters(), lr=CFG.learning_rate, momentum=CFG.momentum, weight_decay=CFG.weight_decay
+        )
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=list(CFG.lr_milestones), gamma=0.1)
     best_top1 = float("-inf")
     best_state = None
@@ -649,6 +801,8 @@ def run_experiment() -> dict[str, object]:
             **pop_grad_stats(),
             **pop_logit_stats(),
             **pop_dkd_stats(),
+            **pop_dot_stats(),
+            "elapsed_seconds": time.time() - started_at,
             **{f"test_{key}": value for key, value in test_metrics.items()},
         }
         history.append(row)
