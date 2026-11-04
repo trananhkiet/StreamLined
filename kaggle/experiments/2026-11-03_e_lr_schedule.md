@@ -70,6 +70,34 @@ Ghi chú: session tự động (scheduler v5); không hỏi lại.
   Dataset và Docker image đã xác minh ở version 1 (cùng metadata).
 - Lần submit 1 (ERROR vì không có GPU) không tính là retry.
 
+## Kết quả E1 (step 80/150/200) — đã xác minh từ log Kaggle (tài khoản 2, version 2), 2026-11-04
+Config xác nhận trong `summary.json`: `seed=2021`, `learning_rate=0.1`, `lr_milestones=[80,150,200]`, CE/KD 0.5/0.5, `kd_mask_mode=scalar`, `lambda_bc=-1`, `loss_mode=skd`, `optim_mode=sgd`, T=4.
+Log: `device: cuda`, CIFAR-100 từ dataset đã attach, teacher 71.59%.
+
+| | Run B (150/180/210) | **E1 (80/150/200)** | E1 − B |
+|---|---:|---:|---:|
+| **Test top-1 epoch 240 (chỉ số chính)** | 70.04% | **70.75%** | **+0.71** |
+| Trung bình 10 epoch cuối (231–240) | 70.07% | **70.68%** | **+0.61** |
+| Best test top-1 (có selection bias) | 70.26% (ep 235) | **70.79%** (ep 239) | +0.53 |
+| Best test top-5 | 92.32% | **92.65%** | +0.33 |
+| Best test loss | 1.0730 | **1.0405** | −0.033 |
+| Train top-1 cuối | 66.73% | 68.26% | +1.53 |
+| Runtime | — | 13.975 s (~3,88 giờ) | |
+(Trung bình 10 epoch cuối của run B tính lại từ log của tài khoản 1 `trananhkiet/streamlined-kd-cifar100-ce05-kd05`.)
+
+Đường cong E1: ep80 41.50% → ep81 **62.63%** (lần giảm LR đầu sớm hơn 70 epoch) → ep150 64.07% → ep151 68.49% → ep200 69.73% → ep201 70.20% → ep240 70.75%.
+Ở run B: ep150 38.06% → ep151 62.63% → ep181 67.66% → ep211 70.05% → ep240 70.04%.
+
+### Bài học (E1, 1 seed)
+- **Kết quả tốt nhất cho đến nay** và là run đầu tiên vượt luật ngưỡng (+0,71 ở epoch 240, +0,61 ở trung bình 10 epoch cuối, đều > 0,5). Top-5 và test loss cũng tốt hơn rõ, nên không phải một chỉ số lẻ.
+- Rút ngắn giai đoạn LR 0.1 (150 → 80 epoch) và cho nhiều epoch hơn ở LR 0.01/0.001 (70 + 50 thay vì 30 + 30) giúp student hội tụ tốt hơn;
+  giai đoạn LR 0.01 đạt ~64% (cao hơn đỉnh LR 0.01 của run B ~63%), và giai đoạn LR 0.001 dài hơn đưa lên ~69,7–70,2% trước lần giảm cuối.
+- Train top-1 cao hơn B 1,5 điểm và test cũng cao hơn: E1 khớp dữ liệu tốt hơn mà không làm giảm tổng quát.
+- Cảnh báo: mới 1 seed; luật quyết định yêu cầu giữ được ở seed 2022 (E3) trước khi kết luận. Khoảng cách tới paper (72,5%) còn ~1,75 điểm.
+- Theo luật: E1 đạt ngưỡng → E3 sẽ chạy **E1 seed 2022** và **run B seed 2022** (sau E2; nếu E2 tốt hơn E1 thì ứng viên E3 là E2).
+
+## E2 (LR 0.05) — chuẩn bị
+Notebook `kaggle/experiments/e2_lr005.ipynb`, khác notebook nền đúng một dòng (`LEARNING_RATE` mặc định `0.05`); bảng LR đã kiểm tra ở bước implement (0.05 → 0.005 từ ep151 → 0.0005 từ ep181 → 5e-5 từ ep211).
+
 ## Trạng thái
-E1 đang chạy: https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-e1-step80-150-200 (version 2, submit ~2026-11-03 16:46 UTC). Dự kiến xong ~20:45 UTC.
-**Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.**
+E1 xong. E2 sắp submit. Xem EXPERIMENT_HANDOFF.md (mục "TRẠNG THÁI HIỆN TẠI").
