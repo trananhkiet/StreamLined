@@ -128,4 +128,4 @@ Config xác nhận trong `summary.json`: `seed=2021`, `learning_rate=0.05`, `lr_
 - Kết luận E sẽ so cặp cùng seed: (E1 − B) ở seed 2021 = +0.71; nếu (E1 − B) ở seed 2022 cũng ≥ +0.5 thì coi E1 tốt hơn B thật.
 
 ## Trạng thái
-E1, E2 xong. E3 run 1 (E1 seed 2022) sắp submit. Xem EXPERIMENT_HANDOFF.md (mục "TRẠNG THÁI HIỆN TẠI").
+E1, E2 xong. E3 run 1 (E1 seed 2022) submit 2026-11-04 ~08:29 UTC (https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-e3-e1-seed2022, version 1), RUNNING. Run B seed 2022 chạy sau. **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.**

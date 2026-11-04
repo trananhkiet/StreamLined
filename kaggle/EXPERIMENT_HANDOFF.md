@@ -1,6 +1,6 @@
 # SKD experiment handoff
 
-Updated: 2026-11-04 00:35 UTC (trigger v5: E1 xong, E2 đang chạy).
+Updated: 2026-11-04 08:33 UTC (trigger v5: E2 xong, E3 run 1 đang chạy).
 
 ## Mục tiêu và trạng thái
 
@@ -21,6 +21,7 @@ Tikhonov `0.1`, chạy trên Kaggle T4.
 | LS-T2 — logit standardization, T=2 (nền B) | 0.5/0.5 | 71.59% | 69.30% (epoch 230) | 68.96% |
 | C — DKD (LR 0.1, CE 1.0, alpha 1, beta 2) | — | 71.59% | 69.74% (epoch 234) | 69.51% |
 | **E1 — step LR 80/150/200 (nền B)** | 0.5/0.5 | 71.59% | **70.79% (epoch 239)** | **70.75%** |
+| E2 — LR 0.05, lịch 150/180/210 (nền B) | 0.5/0.5 | 71.59% | 70.59% (epoch 234) | 70.14% |
 | Paper | — | 72.40% | 72.50% | — |
 
 Run B cải thiện `+1.77` điểm so với A nhưng còn thấp hơn paper `2.24` điểm.
@@ -360,7 +361,7 @@ Kaggle MCP trong session đã chuyển sang tài khoản 2. Các run cũ ở tà
   `KAGGLE_API_TOKEN="$KAGGLE_KEY2" kaggle kernels logs kitit5512trn/streamlined-kd-cifar100-e1-step80-150-200` (lọc dòng `epoch ...` và summary JSON), ghi kết quả, rồi build và submit **E2** (`LEARNING_RATE=0.05`).
 
 
-### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-04 00:35 UTC (07:35 giờ Sài Gòn)
+### (Lịch sử) Trạng thái 2026-11-04 00:35 UTC — đã được thay bằng mục TRẠNG THÁI HIỆN TẠI bên dưới
 
 **E1 COMPLETE — kết quả tốt nhất đến nay:** epoch 240 **70.75%** (+0,71 so với run B 70.04), trung bình 10 epoch cuối **70.68%** (B: 70.07, +0,61), best 70.79% (ep 239),
 top-5 92.65%, test loss 1.0405, runtime 13.975 s (~3,88 giờ). **Đạt ngưỡng ≥ +0,5** của luật quyết định → E3 sẽ chạy ứng viên tốt nhất (E1, trừ khi E2 hơn) với seed 2022 và run B seed 2022.
@@ -374,3 +375,17 @@ Chi tiết, đường cong và bài học: [experiments/2026-11-03_e_lr_schedule
   `kaggle kernels logs` (script mẫu đã dùng: đọc JSON, ghép stdout, regex `epoch (\d+)/240 \| lr=... \| train top1=... \| test top1=...`, khối `summary` JSON cuối), ghi kết quả,
   chọn ứng viên E3 (E1 hoặc E2 — run có epoch-240 cao hơn, cả hai phải ≥ 70.54), rồi build và submit run E3 đầu tiên: **ứng viên seed 2022** (`SEED=2022`, giữ nguyên env của ứng viên).
   Lần trigger sau đó: **run B seed 2022** (slug `streamlined-kd-cifar100-e3-runb-seed2022`).
+
+
+### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-04 08:33 UTC (15:33 giờ Sài Gòn)
+
+**E2 COMPLETE (LR 0.05):** epoch 240 **70.14%** (+0,10 so với B), trung bình 10 epoch cuối 70.36% (+0,29), best 70.59% (ep 234), top-5 92.43%, runtime 14.220 s. **Không đạt ngưỡng.**
+LR 0.05 làm giai đoạn đầu ổn định hơn nhiều nhưng kết quả cuối ~bằng B; thứ có ích ở E1 là phân bổ lại epoch (giai đoạn LR thấp dài hơn).
+
+**E3 — ứng viên = E1** (70.75 ≥ 70.54; E2 không đạt). Gồm 2 run, mỗi trigger một run:
+1. **E3 run 1 ĐÃ SUBMIT (đang chạy): E1 seed 2022** — https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-e3-e1-seed2022, **version 1**, submit 2026-11-04 ~08:29 UTC;
+   notebook `kaggle/experiments/e3_e1_seed2022.ipynb` (khác notebook E1 đúng dòng `SEED` = 2022), commit `dc564b1`; dataset `fedesoriano/cifar100`, Docker image ghim, T4 đã xác minh; RUNNING sau >150 giây.
+2. Chưa chạy: **run B seed 2022** — slug `streamlined-kd-cifar100-e3-runb-seed2022`, notebook cần build từ `streamlined_kd_cifar100.py` chỉ đổi `SEED` mặc định thành `2022`.
+- Quota tài khoản 2: 7,86h/30h dùng trước khi submit E3 run 1; sau 2 run E3 còn ~14h (refresh 2026-11-07 00:00 UTC).
+- **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.** Dự kiến xong ~12:30 UTC (trước trigger 16:27 UTC). Khi COMPLETE: ghi kết quả vào file E, rồi build + submit run B seed 2022.
+- Khi cả 2 run E3 xong: so (E1 − B) ở seed 2022 với +0.71 của seed 2021; nếu cũng ≥ +0.5 → kết luận E1 tốt hơn B thật; tổng hợp bài học kế hoạch E vào HANDOFF; rồi `update_trigger enabled=false`.
