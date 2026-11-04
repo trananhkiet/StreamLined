@@ -100,4 +100,4 @@ Log: `device: cuda`, CIFAR-100 từ dataset đã attach, teacher 71.59%.
 Notebook `kaggle/experiments/e2_lr005.ipynb`, khác notebook nền đúng một dòng (`LEARNING_RATE` mặc định `0.05`); bảng LR đã kiểm tra ở bước implement (0.05 → 0.005 từ ep151 → 0.0005 từ ep181 → 5e-5 từ ep211).
 
 ## Trạng thái
-E1 xong. E2 sắp submit. Xem EXPERIMENT_HANDOFF.md (mục "TRẠNG THÁI HIỆN TẠI").
+E1 xong. E2 submit 2026-11-04 ~00:30 UTC (https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-e2-lr005, version 1), RUNNING. **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.**

@@ -1,6 +1,6 @@
 # SKD experiment handoff
 
-Updated: 2026-11-03 16:52 UTC (E1 đang chạy trên tài khoản 2).
+Updated: 2026-11-04 00:35 UTC (trigger v5: E1 xong, E2 đang chạy).
 
 ## Mục tiêu và trạng thái
 
@@ -20,6 +20,7 @@ Tikhonov `0.1`, chạy trên Kaggle T4.
 | LS — logit standardization, T=4 (nền B) | 0.5/0.5 | 71.59% | 68.87% (epoch 228) | 68.60% |
 | LS-T2 — logit standardization, T=2 (nền B) | 0.5/0.5 | 71.59% | 69.30% (epoch 230) | 68.96% |
 | C — DKD (LR 0.1, CE 1.0, alpha 1, beta 2) | — | 71.59% | 69.74% (epoch 234) | 69.51% |
+| **E1 — step LR 80/150/200 (nền B)** | 0.5/0.5 | 71.59% | **70.79% (epoch 239)** | **70.75%** |
 | Paper | — | 72.40% | 72.50% | — |
 
 Run B cải thiện `+1.77` điểm so với A nhưng còn thấp hơn paper `2.24` điểm.
@@ -350,10 +351,26 @@ Kaggle MCP trong session đã chuyển sang tài khoản 2. Các run cũ ở tà
   Nếu vẫn `device: cpu` → ghi "vẫn chặn" (không commit lặp lại nếu không có gì mới) và kết thúc; không tự chuyển tài khoản. Sau 3 lần vẫn chặn → dừng thử, chờ người dùng.
 
 
-### E1 ĐÃ SUBMIT (đang chạy) — cập nhật 2026-11-03 16:52 UTC
+### (Lịch sử) E1 đã submit lúc 2026-11-03 16:46 UTC — đã xong, xem mục bên dưới
 - Run: **E1** = run B nhưng `LR_MILESTONES=80,150,200` (LR 0.1, gamma 0.1). Notebook `kaggle/experiments/e1_step80_150_200.ipynb`, code commit `82cbcbd`.
 - Kaggle (tài khoản 2): https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-e1-step80-150-200 — **version 2**, submit ~16:46 UTC, RUNNING trên GPU
   (quota tài khoản 2 bắt đầu bị trừ). Version 1 trước đó ERROR vì chưa có GPU (blocker quyền, không tính retry).
 - Quota tài khoản 2: 0.07h/30h dùng lúc 16:50 UTC (refresh 2026-11-07 00:00 UTC).
 - **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.** Dự kiến xong ~20:45 UTC (trước lần trigger 00:27 UTC). Khi COMPLETE: đọc log bằng
   `KAGGLE_API_TOKEN="$KAGGLE_KEY2" kaggle kernels logs kitit5512trn/streamlined-kd-cifar100-e1-step80-150-200` (lọc dòng `epoch ...` và summary JSON), ghi kết quả, rồi build và submit **E2** (`LEARNING_RATE=0.05`).
+
+
+### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-04 00:35 UTC (07:35 giờ Sài Gòn)
+
+**E1 COMPLETE — kết quả tốt nhất đến nay:** epoch 240 **70.75%** (+0,71 so với run B 70.04), trung bình 10 epoch cuối **70.68%** (B: 70.07, +0,61), best 70.79% (ep 239),
+top-5 92.65%, test loss 1.0405, runtime 13.975 s (~3,88 giờ). **Đạt ngưỡng ≥ +0,5** của luật quyết định → E3 sẽ chạy ứng viên tốt nhất (E1, trừ khi E2 hơn) với seed 2022 và run B seed 2022.
+Chi tiết, đường cong và bài học: [experiments/2026-11-03_e_lr_schedule.md](experiments/2026-11-03_e_lr_schedule.md). (1 seed; chờ E3 xác nhận.)
+
+**E2 ĐÃ SUBMIT (đang chạy):**
+- Run: **E2** = run B nhưng `LEARNING_RATE=0.05` (lịch 150/180/210). Notebook `kaggle/experiments/e2_lr005.ipynb` (khác nền đúng một dòng), commit `827f5a9` (code train: `82cbcbd`).
+- Kaggle (tài khoản 2): https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-e2-lr005 — **version 1**, submit 2026-11-04 ~00:30 UTC; `kaggle kernels pull -m` xác nhận dataset `fedesoriano/cifar100`, Docker image ghim, T4; RUNNING sau >150 giây (không bị lỗi thiếu GPU).
+- Quota tài khoản 2: 3,89h/30h dùng trước khi submit E2 (refresh 2026-11-07 00:00 UTC). Sau E2 còn ~22h, đủ cho 2 run E3 (~8h).
+- **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.** Dự kiến xong ~04:30 UTC (trước trigger 08:27 UTC). Khi COMPLETE: lọc log bằng
+  `kaggle kernels logs` (script mẫu đã dùng: đọc JSON, ghép stdout, regex `epoch (\d+)/240 \| lr=... \| train top1=... \| test top1=...`, khối `summary` JSON cuối), ghi kết quả,
+  chọn ứng viên E3 (E1 hoặc E2 — run có epoch-240 cao hơn, cả hai phải ≥ 70.54), rồi build và submit run E3 đầu tiên: **ứng viên seed 2022** (`SEED=2022`, giữ nguyên env của ứng viên).
+  Lần trigger sau đó: **run B seed 2022** (slug `streamlined-kd-cifar100-e3-runb-seed2022`).
