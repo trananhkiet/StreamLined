@@ -15,6 +15,8 @@ import hashlib
 import json
 import os
 import random
+import shutil
+import tarfile
 import time
 import urllib.request
 from dataclasses import asdict, dataclass
@@ -35,6 +37,8 @@ from tqdm.auto import tqdm
 class Config:
     seed: int = int(os.getenv("SEED", "2021"))
     epochs: int = int(os.getenv("EPOCHS", "240"))
+    # "skd": released repo teacher (71.59%, runs B..E3); "mdistiller": standard CRD teacher (72.34%, run E4).
+    teacher_source: str = os.getenv("TEACHER_SOURCE", "skd")
     batch_size: int = int(os.getenv("BATCH_SIZE", "64"))
     num_workers: int = int(os.getenv("NUM_WORKERS", "2"))
     learning_rate: float = float(os.getenv("LEARNING_RATE", "0.1"))
@@ -736,6 +740,10 @@ def obtain_teacher_checkpoint() -> Path:
         Path.cwd().parent / "CIFAR-100" / "Model_Pth" / "best_model_weights_resnet56.pth",
         WORK_DIR / "best_model_weights_resnet56.pth",
     ]
+    if CFG.teacher_source == "mdistiller":
+        return obtain_mdistiller_teacher()
+    if CFG.teacher_source != "skd":
+        raise ValueError(f"Unknown TEACHER_SOURCE: {CFG.teacher_source}")
     for candidate in candidates:
         if candidate.exists() and sha256(candidate) == TEACHER_SHA256:
             return candidate
@@ -748,11 +756,50 @@ def obtain_teacher_checkpoint() -> Path:
     return target
 
 
-def load_state_dict(path: Path) -> dict[str, torch.Tensor]:
+# Standard CRD/mdistiller ResNet56 teacher (72.34% in CRD, 72.41% stored in the checkpoint). Same architecture,
+# layer names and CIFAR-100 normalization as ours; only BN `num_batches_tracked` buffers are absent.
+MDISTILLER_TAR_URL = "https://github.com/megvii-research/mdistiller/releases/download/checkpoints/cifar_teachers.tar"
+MDISTILLER_MEMBER = "cifar_teachers/resnet56_vanilla/ckpt_epoch_240.pth"
+MDISTILLER_SHA256 = "4143895c82105da0a73236230db11aee5be39b660fe21e1323037c774f994155"
+
+
+def obtain_mdistiller_teacher() -> Path:
+    target = WORK_DIR / "mdistiller_resnet56_vanilla_ckpt_epoch_240.pth"
+    if not (target.exists() and sha256(target) == MDISTILLER_SHA256):
+        print("Downloading mdistiller ResNet56 teacher (streams the 364 MB cifar_teachers.tar)...")
+        with urllib.request.urlopen(MDISTILLER_TAR_URL) as response, tarfile.open(fileobj=response, mode="r|") as archive:
+            for member in archive:
+                if member.name == MDISTILLER_MEMBER and member.isfile():
+                    with archive.extractfile(member) as source, target.open("wb") as sink:
+                        shutil.copyfileobj(source, sink)
+                    break
+            else:
+                raise RuntimeError(f"{MDISTILLER_MEMBER} not found in {MDISTILLER_TAR_URL}")
+    actual_hash = sha256(target)
+    if actual_hash != MDISTILLER_SHA256:
+        raise RuntimeError(f"mdistiller teacher checksum mismatch: {actual_hash}")
+    return target
+
+
+def _torch_load(path: Path):
     try:
-        state = torch.load(path, map_location="cpu", weights_only=True)
-    except TypeError:
-        state = torch.load(path, map_location="cpu")
+        import numpy as np
+        try:
+            from numpy._core.multiarray import scalar
+        except ImportError:
+            from numpy.core.multiarray import scalar
+        # The CRD checkpoint stores its accuracy as a numpy scalar next to the weights.
+        safe = [(scalar, "numpy.core.multiarray.scalar"), scalar, np.dtype, type(np.dtype("float64")), type(np.dtype("float32"))]
+        with torch.serialization.safe_globals(safe):
+            return torch.load(path, map_location="cpu", weights_only=True)
+    except (TypeError, AttributeError):
+        return torch.load(path, map_location="cpu")
+
+
+def load_state_dict(path: Path) -> dict[str, torch.Tensor]:
+    state = _torch_load(path)
+    if isinstance(state, dict) and "model" in state and "optimizer" in state:
+        state = state["model"]
     if isinstance(state, dict) and "state_dict" in state:
         state = state["state_dict"]
     if any(key.startswith("module.") for key in state):
@@ -766,10 +813,16 @@ def load_state_dict(path: Path) -> dict[str, torch.Tensor]:
 def run_experiment() -> dict[str, object]:
     train_loader, test_loader = make_loaders()
     teacher = resnet56().to(DEVICE)
-    teacher.load_state_dict(load_state_dict(obtain_teacher_checkpoint()), strict=True)
+    teacher_state = load_state_dict(obtain_teacher_checkpoint())
+    for key, value in teacher.state_dict().items():
+        if key.endswith("num_batches_tracked") and key not in teacher_state:
+            teacher_state[key] = torch.zeros_like(value)  # BN step counter only; unused in eval mode
+    teacher.load_state_dict(teacher_state, strict=True)
     teacher.requires_grad_(False).eval()
     teacher_metrics = evaluate(teacher, test_loader, CFG.limit_eval_batches)
-    print(f"Teacher ResNet56: top1={teacher_metrics['top1']:.2f}, top5={teacher_metrics['top5']:.2f}")
+    print(f"Teacher ResNet56 ({CFG.teacher_source}): top1={teacher_metrics['top1']:.2f}, top5={teacher_metrics['top5']:.2f}")
+    if CFG.teacher_source == "mdistiller" and not CFG.limit_eval_batches and teacher_metrics["top1"] < 72.0:
+        raise RuntimeError(f"mdistiller teacher top1 {teacher_metrics['top1']:.2f} < 72.0: weight mapping is wrong")
 
     # Re-seed after teacher validation so student initialization is independent of loader iteration.
     seed_everything(CFG.seed)
