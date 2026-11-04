@@ -377,7 +377,7 @@ Chi tiết, đường cong và bài học: [experiments/2026-11-03_e_lr_schedule
   Lần trigger sau đó: **run B seed 2022** (slug `streamlined-kd-cifar100-e3-runb-seed2022`).
 
 
-### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-04 08:33 UTC (15:33 giờ Sài Gòn)
+### (Lịch sử) Trạng thái 2026-11-04 08:33 UTC — đã được thay bằng mục TRẠNG THÁI HIỆN TẠI bên dưới
 
 **E2 COMPLETE (LR 0.05):** epoch 240 **70.14%** (+0,10 so với B), trung bình 10 epoch cuối 70.36% (+0,29), best 70.59% (ep 234), top-5 92.43%, runtime 14.220 s. **Không đạt ngưỡng.**
 LR 0.05 làm giai đoạn đầu ổn định hơn nhiều nhưng kết quả cuối ~bằng B; thứ có ích ở E1 là phân bổ lại epoch (giai đoạn LR thấp dài hơn).
@@ -390,10 +390,23 @@ LR 0.05 làm giai đoạn đầu ổn định hơn nhiều nhưng kết quả cu
 - **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.** Dự kiến xong ~12:30 UTC (trước trigger 16:27 UTC). Khi COMPLETE: ghi kết quả vào file E, rồi build + submit run B seed 2022.
 - Khi cả 2 run E3 xong: so (E1 − B) ở seed 2022 với +0.71 của seed 2021; nếu cũng ≥ +0.5 → kết luận E1 tốt hơn B thật; tổng hợp bài học kế hoạch E vào HANDOFF; rồi `update_trigger enabled=false`.
 
-**BỔ SUNG 2026-11-04 ~15:20 UTC (người dùng chỉ định): thêm E4, chạy sau E3.**
+**BỔ SUNG 2026-11-04 ~15:20 UTC (người dùng chỉ định): thêm E4, chạy sau E3.** (vẫn hiệu lực)
 - **E4** = lịch E1 kéo dài 300 epoch (milestones 100/188/250) + **teacher chuẩn CRD/mdistiller ResNet56 72.34%** (`TEACHER_SOURCE=mdistiller`).
   Một run gộp 2 yếu tố theo yêu cầu người dùng (không tách được đóng góp từng yếu tố). Chi tiết, nguồn teacher, kiểm tra:
   [experiments/2026-11-04_e4_mdistiller_teacher_300ep.md](experiments/2026-11-04_e4_mdistiller_teacher_300ep.md).
 - Code + notebook đã sẵn sàng và test: `kaggle/experiments/e4_mdteacher_300ep.ipynb` (khác notebook nền đúng 3 dòng mặc định). Mặc định của script vẫn là teacher SKD → run B seed 2022 không đổi.
 - Slug `streamlined-kd-cifar100-e4-mdteacher-300ep`, ~4,9 giờ GPU; log dạng `epoch xxx/300`. Script tự dừng nếu teacher mdistiller < 72.0% trên test.
 - Thứ tự: E3 run 1 → E3 run B seed 2022 → kết luận E → **E4** → tổng kết E4 → tắt trigger.
+
+
+### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-04 16:32 UTC (23:32 giờ Sài Gòn)
+
+**E3 run 1 COMPLETE (E1 seed 2022):** epoch 240 **70.71%**, trung bình 10 epoch cuối 70.72%, best 70.88% (ep 223), top-5 92.34%, runtime 14.280 s.
+So với E1 seed 2021 (70.75 / 70.68): chênh chỉ ~0,04 điểm → E1 rất ổn định giữa seed. Chi tiết: [experiments/2026-11-03_e_lr_schedule.md](experiments/2026-11-03_e_lr_schedule.md).
+
+**E3 run 2 ĐÃ SUBMIT (đang chạy): run B seed 2022** — https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-e3-runb-seed2022, **version 1**, submit 2026-11-04 ~16:28 UTC;
+notebook `kaggle/experiments/e3_runb_seed2022.ipynb` (khác notebook nền đúng dòng `SEED` = 2022), commit `d662170`; `kaggle kernels pull -m` xác nhận dataset `fedesoriano/cifar100`, Docker image ghim, T4, internet bật; RUNNING.
+- Quota tài khoản 2: 11,85h/30h dùng lúc 16:30 UTC (trước khi run này tính giờ); sau run này ~15,8h, còn ~14h cho E4 (~4,9h). Refresh 2026-11-07 00:00 UTC.
+- **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.** Dự kiến xong ~20:30 UTC (trước trigger 00:27 UTC).
+- Khi COMPLETE: ghi kết quả; so (E1 − B) ở seed 2022 (E1 = 70.71) với ngưỡng +0.5 (tức run B seed 2022 ≤ 70.21 thì E1 thắng ở cả 2 seed); ghi kết luận kế hoạch E;
+  rồi submit **E4** (`kaggle/experiments/e4_mdteacher_300ep.ipynb`, slug `streamlined-kd-cifar100-e4-mdteacher-300ep`, xem đoạn BỔ SUNG ở trên).

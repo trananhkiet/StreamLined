@@ -127,5 +127,28 @@ Config xác nhận trong `summary.json`: `seed=2021`, `learning_rate=0.05`, `lr_
   khác notebook E1 đúng một dòng (`SEED` mặc định `2022`); (2) **run B seed 2022** — slug `streamlined-kd-cifar100-e3-runb-seed2022`.
 - Kết luận E sẽ so cặp cùng seed: (E1 − B) ở seed 2021 = +0.71; nếu (E1 − B) ở seed 2022 cũng ≥ +0.5 thì coi E1 tốt hơn B thật.
 
+## Kết quả E3 run 1 (E1 seed 2022) — đã xác minh từ log Kaggle (tài khoản 2, version 1), 2026-11-04
+Config xác nhận trong `summary.json`: `seed=2022`, `learning_rate=0.1`, `lr_milestones=[80,150,200]`, còn lại như E1. Log: `device: cuda`, dataset attach OK, teacher 71.59%.
+
+| | E1 seed 2021 | **E1 seed 2022** | Chênh giữa 2 seed |
+|---|---:|---:|---:|
+| **Test top-1 epoch 240** | 70.75% | **70.71%** | −0.04 |
+| Trung bình 10 epoch cuối | 70.68% | **70.72%** | +0.04 |
+| Best test top-1 | 70.79% (ep 239) | **70.88%** (ep 223) | +0.09 |
+| Best test top-5 | 92.65% | 92.34% | −0.31 |
+| Best test loss | 1.0405 | 1.0475 | +0.007 |
+| Train top-1 cuối | 68.26% | 68.14% | −0.12 |
+| Runtime | 13.975 s | 14.280 s (~3,97 giờ) | |
+
+Đường cong: ep80 43.33% → ep81 61.57% → ep150 63.65% → ep151 68.43% → ep200 69.52% → ep201 70.49% → ep240 70.71% (cùng hình dạng với seed 2021).
+
+### Bài học (E3 run 1)
+- E1 **rất ổn định giữa 2 seed**: chênh top-1 epoch 240 chỉ 0,04 điểm, trung bình 10 epoch cuối 0,04 điểm. Nhiễu seed của E1 nhỏ hơn nhiều so với mức +0,71 mà E1 hơn run B ở seed 2021.
+- E1 seed 2022 (70.71) vẫn cao hơn run B seed 2021 (70.04) 0,67 điểm, nhưng luật quyết định so **cùng seed**: cần run B seed 2022 (đang chạy) mới kết luận.
+
+## E3 run 2 (run B seed 2022) — đã submit
+Notebook `kaggle/experiments/e3_runb_seed2022.ipynb` (build từ `streamlined_kd_cifar100.py` hiện tại, khác notebook nền đúng dòng `SEED` = 2022; mặc định `TEACHER_SOURCE=skd`, 240 epoch, milestones 150/180/210 = run B), commit `d662170`.
+Kaggle: https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-e3-runb-seed2022, **version 1**, submit 2026-11-04 ~16:28 UTC.
+
 ## Trạng thái
-E1, E2 xong. E3 run 1 (E1 seed 2022) submit 2026-11-04 ~08:29 UTC (https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-e3-e1-seed2022, version 1), RUNNING. Run B seed 2022 chạy sau. **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.**
+E1, E2, E3 run 1 xong. E3 run 2 (run B seed 2022) đang chạy. **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.** Sau đó: kết luận E, rồi E4.
