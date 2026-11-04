@@ -99,5 +99,33 @@ Log: `device: cuda`, CIFAR-100 từ dataset đã attach, teacher 71.59%.
 ## E2 (LR 0.05) — chuẩn bị
 Notebook `kaggle/experiments/e2_lr005.ipynb`, khác notebook nền đúng một dòng (`LEARNING_RATE` mặc định `0.05`); bảng LR đã kiểm tra ở bước implement (0.05 → 0.005 từ ep151 → 0.0005 từ ep181 → 5e-5 từ ep211).
 
+## Kết quả E2 (LR 0.05, lịch 150/180/210) — đã xác minh từ log Kaggle (tài khoản 2, version 1), 2026-11-04
+Config xác nhận trong `summary.json`: `seed=2021`, `learning_rate=0.05`, `lr_milestones=[150,180,210]`, còn lại như run B. Log: `device: cuda`, dataset attach OK, teacher 71.59%.
+
+| | Run B | E1 | **E2** | E2 − B |
+|---|---:|---:|---:|---:|
+| **Test top-1 epoch 240** | 70.04% | 70.75% | **70.14%** | +0.10 |
+| Trung bình 10 epoch cuối | 70.07% | 70.68% | **70.36%** | +0.29 |
+| Best test top-1 | 70.26% | 70.79% | **70.59%** (ep 234) | +0.33 |
+| Best test top-5 | 92.32% | 92.65% | 92.43% | +0.11 |
+| Best test loss | 1.0730 | 1.0405 | 1.0423 | −0.031 |
+| Train top-1 cuối | 66.73% | 68.26% | 67.45% | +0.72 |
+| Runtime | — | 13.975 s | 14.220 s (~3,95 giờ) | |
+
+Đường cong E2: giai đoạn LR 0.05 test dao động ~45–57% (cao hơn rõ mức 38–48% của LR 0.1) → ep151 65.49% → ep181 69.27% → ep200 70.23% → ep211 70.25% → ep240 70.14%.
+
+### Bài học (E2, 1 seed)
+- Hạ LR khởi đầu xuống 0.05 làm giai đoạn đầu "đẹp" hơn nhiều (test cao hơn ~10 điểm trước lần giảm LR đầu), nhưng **kết quả cuối gần như bằng run B**
+  (+0,10 epoch 240, +0,29 trung bình 10 epoch cuối) — **không đạt ngưỡng +0,5**. Xác nhận rằng độ "dao động" ở LR 0.1 không phải vấn đề tự thân.
+- Test loss của E2 tốt gần bằng E1, nhưng top-1 thấp hơn E1 ~0,3–0,6 điểm. Thứ có ích ở E1 là **phân bổ lại số epoch** (giai đoạn LR thấp dài hơn), không phải LR khởi đầu nhỏ hơn.
+- Epoch 240 của E2 (70.14) thấp hơn trung bình 10 epoch cuối (70.36) ~0,2 điểm: minh họa nhiễu giữa các epoch cuối, nên trung bình 10 epoch cuối là chỉ số phụ hữu ích.
+
+## E3 — chọn ứng viên theo luật quyết định
+- E1 epoch 240 = 70.75 ≥ 70.54 (B + 0.5) → **đạt**; E2 = 70.14 → không đạt. **Ứng viên = E1.**
+- E3 gồm 2 run, mỗi lần trigger một run: (1) **E1 seed 2022** — slug `streamlined-kd-cifar100-e3-e1-seed2022`
+  (tên ngắn cho dưới giới hạn ~50 ký tự của Kaggle; đúng mẫu `e3-<tên-ứng-viên>-seed2022`), notebook `kaggle/experiments/e3_e1_seed2022.ipynb`
+  khác notebook E1 đúng một dòng (`SEED` mặc định `2022`); (2) **run B seed 2022** — slug `streamlined-kd-cifar100-e3-runb-seed2022`.
+- Kết luận E sẽ so cặp cùng seed: (E1 − B) ở seed 2021 = +0.71; nếu (E1 − B) ở seed 2022 cũng ≥ +0.5 thì coi E1 tốt hơn B thật.
+
 ## Trạng thái
-E1 xong. E2 submit 2026-11-04 ~00:30 UTC (https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-e2-lr005, version 1), RUNNING. **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.**
+E1, E2 xong. E3 run 1 (E1 seed 2022) sắp submit. Xem EXPERIMENT_HANDOFF.md (mục "TRẠNG THÁI HIỆN TẠI").
