@@ -444,7 +444,7 @@ Chi tiết: [experiments/2026-11-03_e_lr_schedule.md](experiments/2026-11-03_e_l
   Nếu ERROR vì teacher < 72.0: không retry, ghi blocker.
 
 
-### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-05 08:35 UTC (15:35 giờ Sài Gòn) — KẾ HOẠCH E + E4 HOÀN TẤT, scheduler v5 đã tắt
+### (Lịch sử) Trạng thái 2026-11-05 08:35 UTC — kế hoạch E + E4 hoàn tất; đã được thay bằng mục TRẠNG THÁI HIỆN TẠI bên dưới
 
 **E4 COMPLETE** (teacher mdistiller + lịch E1 kéo dài 300 epoch 100/188/250, seed 2021):
 teacher đo được **72.41%**; student epoch 300 **71.70%**, trung bình 10 epoch cuối **71.73%**, best **72.10%** (ep 291), top-5 93.02%, runtime 16.959 s.
@@ -480,3 +480,20 @@ So với paper theo best top-1:
 | E1 (s2021) | SKD 71.59 | 240 | 70.79 | −1.71 |
 | E1 (s2022) | SKD 71.59 | 240 | 70.88 | −1.62 |
 | **E4** (s2021) | mdistiller 72.41 | 300 | **72.10** (ep 291) | **−0.40** |
+
+
+### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-05 10:50 UTC (17:50 giờ Sài Gòn) — KẾ HOẠCH F (ý tưởng của người dùng)
+
+**F1 ĐÃ SUBMIT (đang chạy): trọng số CE/KD theo từng mẫu dựa vào việc teacher đoán đúng/sai** — một yếu tố so với E4.
+- Công thức: w_i = 0.6 nếu teacher đoán đúng ảnh i, 0.4 nếu sai; L = mean[(1 − w_i)·CE_i] + mask·mean[w_i·KL_i] + 0.5·BC.
+  Env `SAMPLE_WEIGHT_MODE=teacher_correct`, `SW_TRUST=0.6`, `SW_DISTRUST=0.4` (mặc định `none` = hành vi cũ, đã test bit-exact).
+- Nền = E4: teacher mdistiller 72.41%, 300 epoch, milestones 100/188/250, seed 2021. Chi tiết, nghiên cứu liên quan, test:
+  [experiments/2026-11-05_f1_teacher_correct_weight.md](experiments/2026-11-05_f1_teacher_correct_weight.md).
+- Kaggle (tài khoản 2): https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-f1-teacher-weight — **version 1**, submit 2026-11-05 ~10:43 UTC;
+  notebook `kaggle/experiments/f1_teacher_correct_weight.ipynb` (khác cấu hình E4 đúng dòng `SAMPLE_WEIGHT_MODE`), commit `9090d82`.
+- Quota tài khoản 2: 20,6h/30h dùng trước khi submit; sau F1 ~25,4h. Refresh 2026-11-07 00:00 UTC.
+- **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.** Dự kiến xong ~15:35 UTC (trước trigger 16:27 UTC).
+- Luật quyết định (so với E4 seed 2021: 71.70 epoch cuối / 71.73 TB 10 cuối / 72.10 best):
+  - F1 epoch cuối ≥ **72.20** (E4 + 0.5) → sau khi quota refresh chạy **F1 seed 2022** rồi **E4 seed 2022** (mỗi trigger một run), so cặp cùng seed.
+  - Không đạt → ghi kết luận F1, tắt scheduler, chờ người dùng (có thể thử bản mềm kiểu CCKD hoặc mức 0.7/0.3).
+- Ghi kèm khi đọc log: `teacher_train_top1_sw` (tỉ lệ mẫu nhận KD 0.6) ở vài epoch đầu/giữa/cuối nếu có trong log; best top-1 so với paper 72.50.
