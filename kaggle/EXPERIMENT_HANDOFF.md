@@ -464,3 +464,19 @@ So với E1: +0.95 (epoch cuối), +1.05 (TB 10 cuối). Cách paper SKD (72.50)
 - Scheduler v5 (`trig_01Sh2GBEHeb1grKfyRJfr7nk`) đã được tắt (`enabled=false`) theo kế hoạch. Không còn run nào đang chạy.
 - Quota tài khoản 2: 20,6h/30h đã dùng lúc 08:35 UTC (còn ~9,4h, đủ ~1 run 300 epoch hoặc 2 run 240 epoch); refresh 2026-11-07 00:00 UTC.
 - Việc tiếp theo (chờ người dùng quyết định): ví dụ tách đóng góp của E4 (teacher mdistiller + 240 epoch lịch E1), thêm seed cho E4, hoặc quay lại D (DOT) trên nền mới.
+
+
+### QUY ƯỚC CHỈ SỐ (người dùng thống nhất 2026-11-05) — áp dụng cho mọi bảng từ nay
+Mọi bảng kết quả ghi **cả hai**: best top-1 và top-1 epoch cuối (kèm trung bình 10 epoch cuối).
+- **So với paper → dùng best top-1.** Code gốc repo SKD (`CIFAR-100/Utils/train.py`, hàm `test()`) theo dõi `best_acc` trên tập test và lưu checkpoint ở epoch tốt nhất;
+  CRD/RepDistiller cũng in "best accuracy". Nên số paper (SKD 72.50) nhiều khả năng là best top-1.
+- **So giữa các run của ta (ra quyết định, luật ngưỡng +0.5) → dùng top-1 epoch cuối và trung bình 10 epoch cuối.** CIFAR-100 không có tập validation;
+  best top-1 là max của ~240–300 lần đo trên chính tập test nên bị selection bias (lạc quan ~0.2–0.4 điểm, ví dụ E4: best 72.10 ở ep 291 trong khi các epoch quanh đó ~71.6–71.9).
+
+So với paper theo best top-1:
+| Run | Teacher | Epoch | Best top-1 | Cách paper (72.50) |
+|---|---|---:|---:|---:|
+| Run B (s2021) | SKD 71.59 | 240 | 70.26 | −2.24 |
+| E1 (s2021) | SKD 71.59 | 240 | 70.79 | −1.71 |
+| E1 (s2022) | SKD 71.59 | 240 | 70.88 | −1.62 |
+| **E4** (s2021) | mdistiller 72.41 | 300 | **72.10** (ep 291) | **−0.40** |

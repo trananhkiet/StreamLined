@@ -44,8 +44,8 @@ Paper và các bảng KD dùng 240 epoch, nên E4 không phải so sánh trực 
 - Log có dạng `epoch xxx/300 | ...`.
 
 ## Đánh giá
-- Chỉ số chính: test top-1 epoch 300; phụ: trung bình 10 epoch cuối, best top-1 (có selection bias).
-- So với E1 (seed 2021): 70.75 final / 70.68 trung bình 10 cuối; với paper SKD 72.50.
+- So giữa các run: test top-1 epoch 300 và trung bình 10 epoch cuối. So với paper: best top-1 (xem "Quy ước chỉ số" trong HANDOFF).
+- So với E1 (seed 2021): 70.75 final / 70.68 trung bình 10 cuối; với paper SKD 72.50 (best top-1). E4 best 72.10 → cách paper −0.40.
 
 ## Trạng thái
 Đã submit 2026-11-05 ~00:28 UTC sau khi E3 hoàn tất (E1 thắng run B ở cả 2 seed: +0.71 / +0.66).
