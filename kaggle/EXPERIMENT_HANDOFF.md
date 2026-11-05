@@ -482,7 +482,7 @@ So với paper theo best top-1:
 | **E4** (s2021) | mdistiller 72.41 | 300 | **72.10** (ep 291) | **−0.40** |
 
 
-### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-05 10:50 UTC (17:50 giờ Sài Gòn) — KẾ HOẠCH F (ý tưởng của người dùng)
+### (Lịch sử) Trạng thái 2026-11-05 10:50 UTC — F1 đã submit; đã được thay bằng mục TRẠNG THÁI HIỆN TẠI bên dưới
 
 **F1 ĐÃ SUBMIT (đang chạy): trọng số CE/KD theo từng mẫu dựa vào việc teacher đoán đúng/sai** — một yếu tố so với E4.
 - Công thức: w_i = 0.6 nếu teacher đoán đúng ảnh i, 0.4 nếu sai; L = mean[(1 − w_i)·CE_i] + mask·mean[w_i·KL_i] + 0.5·BC.
@@ -497,3 +497,23 @@ So với paper theo best top-1:
   - F1 epoch cuối ≥ **72.20** (E4 + 0.5) → sau khi quota refresh chạy **F1 seed 2022** rồi **E4 seed 2022** (mỗi trigger một run), so cặp cùng seed.
   - Không đạt → ghi kết luận F1, tắt scheduler, chờ người dùng (có thể thử bản mềm kiểu CCKD hoặc mức 0.7/0.3).
 - Ghi kèm khi đọc log: `teacher_train_top1_sw` (tỉ lệ mẫu nhận KD 0.6) ở vài epoch đầu/giữa/cuối nếu có trong log; best top-1 so với paper 72.50.
+
+
+### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-05 16:35 UTC (23:35 giờ Sài Gòn) — F1 xong, KHÔNG đạt ngưỡng (sát), scheduler đã tắt
+
+**F1 COMPLETE** (trọng số CE/KD theo teacher đúng/sai 0.6/0.4, nền E4): epoch cuối **72.13%** (+0.43 so với E4 71.70), TB 10 cuối 72.14 (+0.41),
+best **72.32%** (ep 293; cách paper 72.50 chỉ −0.18), top-5 92.83, runtime 17.332 s. Teacher 72.41%.
+- Luật: cần ≥ 72.20 → **không đạt (thiếu 0.07)**; không tự chạy seed 2022. Tín hiệu nhất quán tốt (cao hơn E4 ở mọi mốc giảm LR). Chi tiết:
+  [experiments/2026-11-05_f1_teacher_correct_weight.md](experiments/2026-11-05_f1_teacher_correct_weight.md).
+
+**Bảng tổng kết (test top-1, theo QUY ƯỚC CHỈ SỐ):**
+| Run | Teacher | Epoch | Seed | Final | TB 10 cuối | Best |
+|---|---|---:|---|---:|---:|---:|
+| B | SKD 71.59 | 240 | 2021 | 70.04 | 70.07 | 70.26 |
+| E1 (80/150/200) | SKD 71.59 | 240 | 2021 | 70.75 | 70.68 | 70.79 |
+| E4 (100/188/250) | mdistiller 72.41 | 300 | 2021 | 71.70 | 71.73 | 72.10 |
+| **F1** (E4 + w teacher đúng/sai 0.6/0.4) | mdistiller 72.41 | 300 | 2021 | **72.13** | **72.14** | **72.32** |
+
+- Scheduler v5 (`trig_01Sh2GBEHeb1grKfyRJfr7nk`) đã tắt (`enabled=false`). Không còn run nào đang chạy.
+- Quota tài khoản 2: ~25,4h/30h đã dùng; refresh 2026-11-07 00:00 UTC.
+- Chờ người dùng chọn: (1) F1 seed 2022 + E4 seed 2022 để xác nhận; (2) mức 0.7/0.3; (3) bản mềm kiểu CCKD.

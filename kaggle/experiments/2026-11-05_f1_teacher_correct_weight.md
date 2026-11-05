@@ -41,4 +41,36 @@ Notebook `kaggle/experiments/f1_teacher_correct_weight.ipynb`: khác cấu hình
 - Slug `streamlined-kd-cifar100-f1-teacher-weight` (tài khoản 2 `kitit5512trn`), T4, dataset `fedesoriano/cifar100`, internet bật (tải teacher mdistiller). ~4,7–4,9 giờ GPU.
 
 ## Trạng thái
-Chuẩn bị xong; submit ngay theo yêu cầu người dùng (xem HANDOFF).
+Submit 2026-11-05 ~10:43 UTC (https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-f1-teacher-weight, version 1, commit `9090d82`). COMPLETE — xem kết quả bên dưới.
+
+## Kết quả F1 — đã xác minh từ log Kaggle (tài khoản 2, version 1), 2026-11-05
+Config xác nhận trong `summary.json`: `sample_weight_mode=teacher_correct`, `sw_trust=0.6`, `sw_distrust=0.4`, `teacher_source=mdistiller`, `epochs=300`,
+`lr_milestones=[100,188,250]`, `seed=2021`, `kd_mask_mode=scalar`, `loss_mode=skd`, T=4. Log: `device: cuda`, dataset OK, **teacher 72.41% / 92.50%** (giống E4).
+
+| | E4 (đối chứng) | **F1** | F1 − E4 | Paper SKD |
+|---|---:|---:|---:|---:|
+| **Test top-1 epoch 300 (chỉ số quyết định)** | 71.70 | **72.13** | **+0.43** | |
+| Trung bình 10 epoch cuối (291–300) | 71.73 | **72.14** | +0.41 | |
+| Best test top-1 (so với paper) | 72.10 (ep 291) | **72.32** (ep 293) | +0.22 | 72.50 (F1 −0.18) |
+| Best test top-5 | 93.02 | 92.83 | −0.19 | |
+| Best test loss | 1.0421 | 1.0498 | +0.008 | |
+| Train top-1 cuối | 67.05 | 67.81 | +0.76 | |
+| Runtime | 16.959 s | 17.332 s (~4,81 giờ) | | |
+
+Đường cong F1: ep100 47.28% → ep101 63.14% → ep188 64.32% → ep189 70.08% → ep250 70.63% → ep251 71.86% → ep260 72.21% → ep300 72.13%.
+So với E4 ở cùng mốc: ep101 62.82 / ep189 69.31 / ep251 71.44 / ep300 71.70 → F1 cao hơn E4 ở **mọi** mốc giảm LR (+0.3 đến +0.8).
+Top-5 epoch theo test top-1: 293 (72.32), 275/288/289 (72.30), 270 (72.28) → phần cuối F1 ổn định quanh 72.1–72.3, không có một epoch "may" đột biến như E4 ep 291.
+`teacher_train_top1_sw` không in ra stdout (chỉ có trong `history.csv`, host `www.kaggleusercontent.com` bị chặn) → chưa lấy được tỉ lệ mẫu nhận KD 0.6.
+
+### Kết luận theo luật quyết định
+- F1 epoch cuối 72.13 < ngưỡng 72.20 (E4 + 0.5) → **KHÔNG ĐẠT** (thiếu 0.07 điểm). Theo luật: không chạy cặp seed 2022 tự động, dừng kế hoạch F, chờ người dùng.
+- Tuy không đạt ngưỡng, tín hiệu **nhất quán theo hướng tốt**: +0.43 epoch cuối, +0.41 TB 10 cuối, +0.22 best, cao hơn E4 ở mọi mốc giảm LR.
+  Nhiễu seed đã đo ở E3 chỉ ~0.01–0.1 điểm (240 epoch, teacher cũ), nên +0.4 có thể là hiệu ứng thật — cần seed 2022 để xác nhận.
+- **Best top-1 72.32: gần paper nhất từ trước tới nay** (−0.18), dù vẫn train 300 epoch (paper 240).
+- Bài học: giảm tin teacher ở mẫu nó sai (và tăng nhẹ KD ở mẫu nó đúng) giúp student khớp train tốt hơn (+0.76 train top-1) và tổng quát tốt hơn;
+  test loss gần như không đổi, top-5 giảm nhẹ.
+
+### Gợi ý bước sau (chờ người dùng quyết định)
+1. Chạy **F1 seed 2022 + E4 seed 2022** dù chưa qua ngưỡng, vì +0.43 sát ngưỡng và có lý do tin là thật (~9,6h GPU, sau khi quota refresh 2026-11-07).
+2. Mức mạnh hơn **0.7/0.3** (một yếu tố so với F1) xem hiệu ứng có tăng theo mức lệch không.
+3. Bản mềm kiểu CCKD: w_i = 0.4 + 0.2·p_teacher(nhãn đúng).
