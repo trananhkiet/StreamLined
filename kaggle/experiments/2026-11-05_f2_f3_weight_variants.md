@@ -47,3 +47,13 @@ Plan + code + test CPU xong. **BLOCKER tài khoản 3: chưa có GPU.**
   Kaggle MCP đã ở tài khoản 3 (quota GPU 0s/30h).
 - Cách gỡ: người dùng xác minh số điện thoại cho tài khoản `trananhkiet5551` trên Kaggle (Settings → Phone verification), rồi chạy lại smoke test.
   Sau đó submit F2 và F3 (có thể song song: 2 session, mỗi run ~4,8h quota).
+
+## Cập nhật 2026-11-05 17:35 UTC — F2 chạy trên tài khoản 2 (người dùng chỉ định), chấp nhận bị cắt do quota
+- Tài khoản 3 chưa có GPU (smoke test lần 2 vẫn `device: cpu`) → người dùng chọn dùng lại tài khoản 2 (`kitit5512trn`), Kaggle MCP đã kết nối lại tài khoản 2.
+- Quota tài khoản 2 lúc submit: 91.540 s / 108.000 s dùng (còn 16.460 s ≈ 4,57h). Một run 300 epoch cần ~17.000–17.400 s →
+  **dự kiến bị Kaggle dừng ở ~epoch 284–290** (57–58 s/epoch). Người dùng chấp nhận chạy luôn.
+  Hệ quả: có thể không có top-1 epoch 300 / TB 10 epoch cuối / summary.json; đọc kết quả từ log (best và các epoch đã chạy).
+  So sánh công bằng với F1 sẽ dùng **cùng mốc epoch cuối cùng mà F2 đạt được** (top-1 tại epoch đó và TB 10 epoch trước đó của cả F1 và F2).
+- F2: https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-f2-hard-07-03 — version 1, submit ~17:32 UTC;
+  notebook `kaggle/experiments/f2_hard_07_03.ipynb` (khác cấu hình F1 build từ cùng script đúng 2 dòng `SW_TRUST`/`SW_DISTRUST`), commit `db45c42`.
+- F3 (bản mềm) chạy sau khi quota refresh (2026-11-07 00:00 UTC).

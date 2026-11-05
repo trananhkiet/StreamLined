@@ -525,3 +525,12 @@ best **72.32%** (ep 293; cách paper 72.50 chỉ −0.18), top-5 92.83, runtime 
   w_i = 0.4 + 0.2·p_teacher(nhãn đúng) (`SAMPLE_WEIGHT_MODE=teacher_prob`). Nền = F1/E4 (teacher mdistiller, 300 epoch, 100/188/250, seed 2021).
   Chi tiết: [experiments/2026-11-05_f2_f3_weight_variants.md](experiments/2026-11-05_f2_f3_weight_variants.md). Code + test CPU xong (bit-exact cho các chế độ cũ).
 - **BLOCKER:** smoke test trên tài khoản 3 chạy `device: cpu` dù đã yêu cầu T4 → tài khoản chưa được bật GPU (cần xác minh số điện thoại). Chưa submit F2/F3.
+
+
+### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-05 17:35 UTC (00:35 giờ Sài Gòn 06/11) — F2 đang chạy (tài khoản 2)
+- Tài khoản 3 vẫn chưa có GPU → dùng lại **tài khoản 2** (`KAGGLE_KEY2`; Kaggle MCP đã kết nối lại tài khoản 2).
+- **F2 ĐÃ SUBMIT (đang chạy):** hard 0.7/0.3 trên nền F1 — https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-f2-hard-07-03,
+  version 1, ~17:32 UTC, notebook `kaggle/experiments/f2_hard_07_03.ipynb`, commit `db45c42`.
+- Quota còn ~4,57h < ~4,8h cần → **dự kiến bị dừng ở ~epoch 284–290** (~22:10 UTC). Người dùng chấp nhận. So với F1 tại cùng mốc epoch cuối F2 đạt được.
+- Sau đó: **F3** (bản mềm CCKD, `SAMPLE_WEIGHT_MODE=teacher_prob`) sau khi quota refresh 2026-11-07 00:00 UTC.
+- **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.**
