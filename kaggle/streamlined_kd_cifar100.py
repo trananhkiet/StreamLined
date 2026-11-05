@@ -80,6 +80,7 @@ class Config:
     # Plan item "F" (user idea, 2026-11-05): per-sample CE/KD weight by teacher correctness on the training sample.
     #   w_i = sw_trust if teacher argmax == label else sw_distrust;  L = mean((1 - w_i) CE_i) + mask * mean(w_i KL_i) + bc
     # "none" (default) keeps every previous experiment unchanged; with sw_trust = sw_distrust = 0.5 it equals run B/E4.
+    # "teacher_prob" (soft, CCKD-style): w_i = sw_distrust + (sw_trust - sw_distrust) * p_teacher(label_i), softmax at T=1.
     sample_weight_mode: str = os.getenv("SAMPLE_WEIGHT_MODE", "none")
     sw_trust: float = float(os.getenv("SW_TRUST", "0.6"))
     sw_distrust: float = float(os.getenv("SW_DISTRUST", "0.4"))
@@ -494,21 +495,29 @@ def raw_loss_terms(
 
 
 def teacher_correct_weights(teacher_logits: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
-    correct = teacher_logits.detach().argmax(dim=1).eq(labels)
+    teacher_logits = teacher_logits.detach()
+    correct = teacher_logits.argmax(dim=1).eq(labels)
     SAMPLE_WEIGHT_STATS["correct"] += correct.sum().item()
     SAMPLE_WEIGHT_STATS["total"] += float(correct.numel())
+    if CFG.sample_weight_mode == "teacher_prob":
+        p_label = F.softmax(teacher_logits, dim=1).gather(1, labels.view(-1, 1)).squeeze(1)
+        SAMPLE_WEIGHT_STATS["p_label_sum"] += p_label.sum().item()
+        return (CFG.sw_distrust + (CFG.sw_trust - CFG.sw_distrust) * p_label).detach()
     trust = torch.full_like(teacher_logits[:, 0], CFG.sw_trust)
     return torch.where(correct, trust, torch.full_like(trust, CFG.sw_distrust)).detach()
 
 
-SAMPLE_WEIGHT_STATS = {"correct": 0.0, "total": 0.0}
+SAMPLE_WEIGHT_STATS = {"correct": 0.0, "total": 0.0, "p_label_sum": 0.0}
 
 
 def pop_sample_weight_stats() -> dict[str, float]:
     """Share (%) of training samples the teacher classifies correctly (= samples that get KD weight sw_trust)."""
     if CFG.sample_weight_mode == "none":
         return {}
-    stats = {"teacher_train_top1_sw": 100.0 * SAMPLE_WEIGHT_STATS["correct"] / max(SAMPLE_WEIGHT_STATS["total"], 1.0)}
+    total = max(SAMPLE_WEIGHT_STATS["total"], 1.0)
+    stats = {"teacher_train_top1_sw": 100.0 * SAMPLE_WEIGHT_STATS["correct"] / total}
+    if CFG.sample_weight_mode == "teacher_prob":
+        stats["teacher_p_label_mean"] = SAMPLE_WEIGHT_STATS["p_label_sum"] / total
     for key in SAMPLE_WEIGHT_STATS:
         SAMPLE_WEIGHT_STATS[key] = 0.0
     return stats
@@ -519,9 +528,9 @@ def distillation_losses(student_logits: torch.Tensor, teacher_logits: torch.Tens
     if CFG.loss_mode == "dkd":
         warmup = min(CURRENT_EPOCH["value"] / max(CFG.dkd_warmup, 1), 1.0)
         return {"ce": CFG.dkd_ce_weight * raw["ce"], "kd": warmup * raw["kd"], "bc": 0.0 * raw["bc"]}
-    if CFG.sample_weight_mode == "teacher_correct":
+    if CFG.sample_weight_mode in ("teacher_correct", "teacher_prob"):
         if CFG.kd_mask_mode != "scalar":
-            raise ValueError("SAMPLE_WEIGHT_MODE=teacher_correct is defined on top of KD_MASK_MODE=scalar")
+            raise ValueError("SAMPLE_WEIGHT_MODE is defined on top of KD_MASK_MODE=scalar")
         weights = teacher_correct_weights(teacher_logits, labels)
         ce_per_sample = F.cross_entropy(student_logits, labels, reduction="none")
         kl_per_sample = kd_loss(student_logits, teacher_logits, CFG.temperature, per_sample=True)
@@ -907,6 +916,8 @@ def run_experiment() -> dict[str, object]:
             f"epoch {epoch + 1:03d}/{CFG.epochs} | lr={row['lr']:.4g} | "
             f"train top1={row['train_top1']:.2f} | test top1={row['test_top1']:.2f} | "
             f"best={max(best_top1, row['test_top1']):.2f}"
+            + (f" | teacher_train_top1={row['teacher_train_top1_sw']:.2f}" if "teacher_train_top1_sw" in row else "")
+            + (f" | p_label={row['teacher_p_label_mean']:.4f}" if "teacher_p_label_mean" in row else "")
         )
         if test_metrics["top1"] > best_top1:
             best_top1 = test_metrics["top1"]

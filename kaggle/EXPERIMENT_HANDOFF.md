@@ -517,3 +517,11 @@ best **72.32%** (ep 293; cách paper 72.50 chỉ −0.18), top-5 92.83, runtime 
 - Scheduler v5 (`trig_01Sh2GBEHeb1grKfyRJfr7nk`) đã tắt (`enabled=false`). Không còn run nào đang chạy.
 - Quota tài khoản 2: ~25,4h/30h đã dùng; refresh 2026-11-07 00:00 UTC.
 - Chờ người dùng chọn: (1) F1 seed 2022 + E4 seed 2022 để xác nhận; (2) mức 0.7/0.3; (3) bản mềm kiểu CCKD.
+
+
+### BỔ SUNG 2026-11-05 16:55 UTC — kế hoạch F2/F3 trên tài khoản 3 (người dùng chỉ định)
+- **Tài khoản Kaggle 3** `trananhkiet5551` (`KAGGLE_USERNAME3`/`KAGGLE_KEY3`; CLI: `export KAGGLE_API_TOKEN="$KAGGLE_KEY3"`). Kaggle MCP đã chuyển sang tài khoản 3.
+- **F2**: hard 0.7/0.3 (`SAMPLE_WEIGHT_MODE=teacher_correct`, `SW_TRUST=0.7`, `SW_DISTRUST=0.3`). **F3**: bản mềm kiểu CCKD
+  w_i = 0.4 + 0.2·p_teacher(nhãn đúng) (`SAMPLE_WEIGHT_MODE=teacher_prob`). Nền = F1/E4 (teacher mdistiller, 300 epoch, 100/188/250, seed 2021).
+  Chi tiết: [experiments/2026-11-05_f2_f3_weight_variants.md](experiments/2026-11-05_f2_f3_weight_variants.md). Code + test CPU xong (bit-exact cho các chế độ cũ).
+- **BLOCKER:** smoke test trên tài khoản 3 chạy `device: cpu` dù đã yêu cầu T4 → tài khoản chưa được bật GPU (cần xác minh số điện thoại). Chưa submit F2/F3.
