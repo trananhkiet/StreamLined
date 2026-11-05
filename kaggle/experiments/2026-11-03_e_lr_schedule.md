@@ -150,5 +150,33 @@ Config xác nhận trong `summary.json`: `seed=2022`, `learning_rate=0.1`, `lr_m
 Notebook `kaggle/experiments/e3_runb_seed2022.ipynb` (build từ `streamlined_kd_cifar100.py` hiện tại, khác notebook nền đúng dòng `SEED` = 2022; mặc định `TEACHER_SOURCE=skd`, 240 epoch, milestones 150/180/210 = run B), commit `d662170`.
 Kaggle: https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-e3-runb-seed2022, **version 1**, submit 2026-11-04 ~16:28 UTC.
 
+## Kết quả E3 run 2 (run B seed 2022) — đã xác minh từ log Kaggle (tài khoản 2, version 1), 2026-11-05
+Config xác nhận trong `summary.json`: `seed=2022`, `teacher_source=skd`, `learning_rate=0.1`, `lr_milestones=[150,180,210]`, 240 epoch, còn lại như run B. Log: `device: cuda`, dataset attach OK, teacher 71.59%.
+
+| | Run B seed 2021 | **Run B seed 2022** | Chênh giữa 2 seed |
+|---|---:|---:|---:|
+| **Test top-1 epoch 240** | 70.04% | **70.05%** | +0.01 |
+| Trung bình 10 epoch cuối | 70.07% | **69.98%** | −0.09 |
+| Best test top-1 | 70.26% (ep 235) | **70.16%** (ep 239) | −0.10 |
+| Best test top-5 | 92.32% | 92.51% | +0.19 |
+| Best test loss | 1.0730 | 1.0722 | −0.001 |
+| Train top-1 cuối | 66.73% | 66.65% | −0.08 |
+| Runtime | — | 14.479 s (~4,02 giờ) | |
+
+Kiểm tra tính tất định: 80 epoch đầu của run B seed 2022 trùng khớp từng số với E1 seed 2022 (cùng seed, cùng LR 0.1 tới epoch 80), ví dụ ep80 test 43.33% ở cả hai.
+
+## KẾT LUẬN KẾ HOẠCH E (2 seed)
+
+| Seed | Run B (150/180/210) | E1 (80/150/200) | **E1 − B (epoch 240)** | E1 − B (trung bình 10 cuối) |
+|---|---:|---:|---:|---:|
+| 2021 | 70.04 | 70.75 | **+0.71** | +0.61 |
+| 2022 | 70.05 | 70.71 | **+0.66** | +0.74 |
+| Trung bình | 70.05 | 70.73 | **+0.69** | +0.68 |
+
+- **E1 đạt luật quyết định ở cả 2 seed** (+0.71 và +0.66, đều ≥ +0.5) → **E1 tốt hơn run B thật**. Nhiễu seed của cả 2 cấu hình chỉ ~0.01–0.1 điểm, nhỏ hơn nhiều so với mức cải thiện.
+- **Lịch LR mới (80/150/200) là cấu hình nền mới** cho các thí nghiệm sau. E2 (LR 0.05) không đạt ngưỡng (+0.10, 1 seed).
+- Bài học: điều giúp ích là rút ngắn giai đoạn LR 0.1 và cho nhiều epoch hơn ở LR thấp; giảm LR khởi đầu thì không.
+- Khoảng cách tới paper (72.50) còn ~1.77 điểm với teacher 71.59%. Bước tiếp: E4 (teacher mdistiller 72.34% + 300 epoch).
+
 ## Trạng thái
-E1, E2, E3 run 1 xong. E3 run 2 (run B seed 2022) đang chạy. **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.** Sau đó: kết luận E, rồi E4.
+**Kế hoạch E1–E3 HOÀN TẤT** (2026-11-05 00:28 UTC). E4 đã submit — xem [2026-11-04_e4_mdistiller_teacher_300ep.md](2026-11-04_e4_mdistiller_teacher_300ep.md).

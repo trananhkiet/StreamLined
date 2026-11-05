@@ -48,4 +48,8 @@ Paper và các bảng KD dùng 240 epoch, nên E4 không phải so sánh trực 
 - So với E1 (seed 2021): 70.75 final / 70.68 trung bình 10 cuối; với paper SKD 72.50.
 
 ## Trạng thái
-Chuẩn bị xong (code + notebook + test). **Chờ E3 xong** rồi scheduler v5 mới submit.
+Đã submit 2026-11-05 ~00:28 UTC sau khi E3 hoàn tất (E1 thắng run B ở cả 2 seed: +0.71 / +0.66).
+- Kaggle (tài khoản 2): https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-e4-mdteacher-300ep — **version 1**; notebook `kaggle/experiments/e4_mdteacher_300ep.ipynb` không đổi từ commit `1d6054a`.
+- `kaggle kernels pull -m` xác nhận dataset `fedesoriano/cifar100`, Docker image ghim, T4, internet bật; RUNNING.
+- Quota tài khoản 2 trước khi submit: 15,87h/30h dùng (còn 14,1h ≥ 5,5h).
+- **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.** Dự kiến xong ~05:20 UTC. Khi đọc log: kiểm tra dòng `Teacher ResNet56 (mdistiller): top1=...`.

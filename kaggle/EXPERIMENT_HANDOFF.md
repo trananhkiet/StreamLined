@@ -399,7 +399,7 @@ LR 0.05 làm giai đoạn đầu ổn định hơn nhiều nhưng kết quả cu
 - Thứ tự: E3 run 1 → E3 run B seed 2022 → kết luận E → **E4** → tổng kết E4 → tắt trigger.
 
 
-### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-04 16:32 UTC (23:32 giờ Sài Gòn)
+### (Lịch sử) Trạng thái 2026-11-04 16:32 UTC — đã được thay bằng mục TRẠNG THÁI HIỆN TẠI bên dưới
 
 **E3 run 1 COMPLETE (E1 seed 2022):** epoch 240 **70.71%**, trung bình 10 epoch cuối 70.72%, best 70.88% (ep 223), top-5 92.34%, runtime 14.280 s.
 So với E1 seed 2021 (70.75 / 70.68): chênh chỉ ~0,04 điểm → E1 rất ổn định giữa seed. Chi tiết: [experiments/2026-11-03_e_lr_schedule.md](experiments/2026-11-03_e_lr_schedule.md).
@@ -410,3 +410,35 @@ notebook `kaggle/experiments/e3_runb_seed2022.ipynb` (khác notebook nền đún
 - **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.** Dự kiến xong ~20:30 UTC (trước trigger 00:27 UTC).
 - Khi COMPLETE: ghi kết quả; so (E1 − B) ở seed 2022 (E1 = 70.71) với ngưỡng +0.5 (tức run B seed 2022 ≤ 70.21 thì E1 thắng ở cả 2 seed); ghi kết luận kế hoạch E;
   rồi submit **E4** (`kaggle/experiments/e4_mdteacher_300ep.ipynb`, slug `streamlined-kd-cifar100-e4-mdteacher-300ep`, xem đoạn BỔ SUNG ở trên).
+
+
+### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-05 00:35 UTC (07:35 giờ Sài Gòn)
+
+**E3 run 2 COMPLETE (run B seed 2022):** epoch 240 **70.05%**, trung bình 10 epoch cuối 69.98%, best 70.16% (ep 239), top-5 92.51%, runtime 14.479 s.
+
+**KẾ HOẠCH E (E1–E3) HOÀN TẤT — E1 tốt hơn run B ở cả 2 seed:**
+
+| Seed | Run B | E1 (80/150/200) | E1 − B (ep 240) | E1 − B (TB 10 cuối) |
+|---|---:|---:|---:|---:|
+| 2021 | 70.04 | 70.75 | +0.71 | +0.61 |
+| 2022 | 70.05 | 70.71 | +0.66 | +0.74 |
+
+Đạt luật quyết định (≥ +0.5 ở cả 2 seed). Nhiễu seed chỉ ~0.01–0.1 điểm. **Lịch 80/150/200 là nền mới.** E2 (LR 0.05) không đạt (+0.10).
+Chi tiết: [experiments/2026-11-03_e_lr_schedule.md](experiments/2026-11-03_e_lr_schedule.md).
+
+**Bảng tổng kết kế hoạch E** (test top-1 epoch 240, teacher SKD 71.59%):
+| Run | Seed | Final | TB 10 cuối | Best |
+|---|---|---:|---:|---:|
+| B (150/180/210) | 2021 | 70.04 | 70.07 | 70.26 |
+| B | 2022 | 70.05 | 69.98 | 70.16 |
+| E1 (80/150/200) | 2021 | **70.75** | 70.68 | 70.79 |
+| E1 | 2022 | **70.71** | 70.72 | 70.88 |
+| E2 (LR 0.05) | 2021 | 70.14 | 70.36 | 70.59 |
+
+**E4 ĐÃ SUBMIT (đang chạy):** teacher mdistiller 72.34% + lịch E1 kéo dài 300 epoch (100/188/250), seed 2021.
+- https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-e4-mdteacher-300ep, **version 1**, submit 2026-11-05 ~00:28 UTC; notebook `kaggle/experiments/e4_mdteacher_300ep.ipynb` (commit `1d6054a`).
+  `kaggle kernels pull -m` xác nhận dataset, Docker image ghim, T4, internet bật; RUNNING.
+- Quota tài khoản 2: 15,87h/30h dùng trước khi submit; sau E4 ~20,8h. Refresh 2026-11-07 00:00 UTC.
+- **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.** Dự kiến xong ~05:20 UTC (trước trigger 08:27 UTC).
+- Khi COMPLETE: kiểm tra teacher top-1 (~72.3–72.4), ghi kết quả vào file E4 + HANDOFF (so với E1 70.75/70.68 và paper 72.50; E4 đổi 2 yếu tố), rồi `update_trigger enabled=false`.
+  Nếu ERROR vì teacher < 72.0: không retry, ghi blocker.
