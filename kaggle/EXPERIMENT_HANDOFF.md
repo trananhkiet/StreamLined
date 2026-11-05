@@ -412,7 +412,7 @@ notebook `kaggle/experiments/e3_runb_seed2022.ipynb` (khác notebook nền đún
   rồi submit **E4** (`kaggle/experiments/e4_mdteacher_300ep.ipynb`, slug `streamlined-kd-cifar100-e4-mdteacher-300ep`, xem đoạn BỔ SUNG ở trên).
 
 
-### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-05 00:35 UTC (07:35 giờ Sài Gòn)
+### (Lịch sử) Trạng thái 2026-11-05 00:35 UTC — đã được thay bằng mục TRẠNG THÁI HIỆN TẠI bên dưới
 
 **E3 run 2 COMPLETE (run B seed 2022):** epoch 240 **70.05%**, trung bình 10 epoch cuối 69.98%, best 70.16% (ep 239), top-5 92.51%, runtime 14.479 s.
 
@@ -442,3 +442,25 @@ Chi tiết: [experiments/2026-11-03_e_lr_schedule.md](experiments/2026-11-03_e_l
 - **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.** Dự kiến xong ~05:20 UTC (trước trigger 08:27 UTC).
 - Khi COMPLETE: kiểm tra teacher top-1 (~72.3–72.4), ghi kết quả vào file E4 + HANDOFF (so với E1 70.75/70.68 và paper 72.50; E4 đổi 2 yếu tố), rồi `update_trigger enabled=false`.
   Nếu ERROR vì teacher < 72.0: không retry, ghi blocker.
+
+
+### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-05 08:35 UTC (15:35 giờ Sài Gòn) — KẾ HOẠCH E + E4 HOÀN TẤT, scheduler v5 đã tắt
+
+**E4 COMPLETE** (teacher mdistiller + lịch E1 kéo dài 300 epoch 100/188/250, seed 2021):
+teacher đo được **72.41%**; student epoch 300 **71.70%**, trung bình 10 epoch cuối **71.73%**, best **72.10%** (ep 291), top-5 93.02%, runtime 16.959 s.
+So với E1: +0.95 (epoch cuối), +1.05 (TB 10 cuối). Cách paper SKD (72.50): −0.80 (epoch cuối), −0.40 (best). E4 đổi 2 yếu tố → không tách được đóng góp. Chi tiết:
+[experiments/2026-11-04_e4_mdistiller_teacher_300ep.md](experiments/2026-11-04_e4_mdistiller_teacher_300ep.md).
+
+**Bảng tổng kết E + E4** (test top-1):
+| Run | Teacher | Epoch | Seed | Final | TB 10 cuối | Best |
+|---|---|---:|---|---:|---:|---:|
+| B (150/180/210) | SKD 71.59 | 240 | 2021 | 70.04 | 70.07 | 70.26 |
+| B | SKD 71.59 | 240 | 2022 | 70.05 | 69.98 | 70.16 |
+| E1 (80/150/200) | SKD 71.59 | 240 | 2021 | 70.75 | 70.68 | 70.79 |
+| E1 | SKD 71.59 | 240 | 2022 | 70.71 | 70.72 | 70.88 |
+| E2 (LR 0.05) | SKD 71.59 | 240 | 2021 | 70.14 | 70.36 | 70.59 |
+| **E4** (100/188/250) | **mdistiller 72.41** | **300** | 2021 | **71.70** | **71.73** | **72.10** |
+
+- Scheduler v5 (`trig_01Sh2GBEHeb1grKfyRJfr7nk`) đã được tắt (`enabled=false`) theo kế hoạch. Không còn run nào đang chạy.
+- Quota tài khoản 2: 20,6h/30h đã dùng lúc 08:35 UTC (còn ~9,4h, đủ ~1 run 300 epoch hoặc 2 run 240 epoch); refresh 2026-11-07 00:00 UTC.
+- Việc tiếp theo (chờ người dùng quyết định): ví dụ tách đóng góp của E4 (teacher mdistiller + 240 epoch lịch E1), thêm seed cho E4, hoặc quay lại D (DOT) trên nền mới.
