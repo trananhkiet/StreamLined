@@ -77,6 +77,12 @@ class Config:
     dot_delta: float = float(os.getenv("DOT_DELTA", "0.075"))
     # Every N batches log the L2 norm of d(loss term)/d(last-layer weight) for CE/KD/BC (0 disables).
     grad_log_every: int = int(os.getenv("GRAD_LOG_EVERY", "100"))
+    # Plan item "F" (user idea, 2026-11-05): per-sample CE/KD weight by teacher correctness on the training sample.
+    #   w_i = sw_trust if teacher argmax == label else sw_distrust;  L = mean((1 - w_i) CE_i) + mask * mean(w_i KL_i) + bc
+    # "none" (default) keeps every previous experiment unchanged; with sw_trust = sw_distrust = 0.5 it equals run B/E4.
+    sample_weight_mode: str = os.getenv("SAMPLE_WEIGHT_MODE", "none")
+    sw_trust: float = float(os.getenv("SW_TRUST", "0.6"))
+    sw_distrust: float = float(os.getenv("SW_DISTRUST", "0.4"))
 
     @property
     def bc_weight(self) -> float:
@@ -477,11 +483,35 @@ def raw_loss_terms(
         kd_term = (kd_loss(student_logits, teacher_logits, CFG.temperature, per_sample=True) * confidence_mask).mean()
     else:
         kd_term = (kd_loss(student_logits, teacher_logits, CFG.temperature) * confidence_mask).mean()
-    return {
+    terms = {
         "ce": F.cross_entropy(student_logits, labels),
         "kd": kd_term,
         "bc": (paper_skd_loss(student_logits, teacher_logits, CFG.tik) * class_mask).mean(),
     }
+    if CFG.sample_weight_mode != "none":
+        terms["kd_mask_fraction"] = confidence_mask.float().mean()  # no grad: skipped by the gradient probe
+    return terms
+
+
+def teacher_correct_weights(teacher_logits: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+    correct = teacher_logits.detach().argmax(dim=1).eq(labels)
+    SAMPLE_WEIGHT_STATS["correct"] += correct.sum().item()
+    SAMPLE_WEIGHT_STATS["total"] += float(correct.numel())
+    trust = torch.full_like(teacher_logits[:, 0], CFG.sw_trust)
+    return torch.where(correct, trust, torch.full_like(trust, CFG.sw_distrust)).detach()
+
+
+SAMPLE_WEIGHT_STATS = {"correct": 0.0, "total": 0.0}
+
+
+def pop_sample_weight_stats() -> dict[str, float]:
+    """Share (%) of training samples the teacher classifies correctly (= samples that get KD weight sw_trust)."""
+    if CFG.sample_weight_mode == "none":
+        return {}
+    stats = {"teacher_train_top1_sw": 100.0 * SAMPLE_WEIGHT_STATS["correct"] / max(SAMPLE_WEIGHT_STATS["total"], 1.0)}
+    for key in SAMPLE_WEIGHT_STATS:
+        SAMPLE_WEIGHT_STATS[key] = 0.0
+    return stats
 
 
 def distillation_losses(student_logits: torch.Tensor, teacher_logits: torch.Tensor, labels: torch.Tensor) -> dict[str, torch.Tensor]:
@@ -489,6 +519,19 @@ def distillation_losses(student_logits: torch.Tensor, teacher_logits: torch.Tens
     if CFG.loss_mode == "dkd":
         warmup = min(CURRENT_EPOCH["value"] / max(CFG.dkd_warmup, 1), 1.0)
         return {"ce": CFG.dkd_ce_weight * raw["ce"], "kd": warmup * raw["kd"], "bc": 0.0 * raw["bc"]}
+    if CFG.sample_weight_mode == "teacher_correct":
+        if CFG.kd_mask_mode != "scalar":
+            raise ValueError("SAMPLE_WEIGHT_MODE=teacher_correct is defined on top of KD_MASK_MODE=scalar")
+        weights = teacher_correct_weights(teacher_logits, labels)
+        ce_per_sample = F.cross_entropy(student_logits, labels, reduction="none")
+        kl_per_sample = kd_loss(student_logits, teacher_logits, CFG.temperature, per_sample=True)
+        return {
+            "ce": ((1.0 - weights) * ce_per_sample).mean(),
+            "kd": (weights * kl_per_sample).mean() * raw["kd_mask_fraction"],
+            "bc": CFG.bc_weight * raw["bc"],
+        }
+    if CFG.sample_weight_mode != "none":
+        raise ValueError(f"Unknown SAMPLE_WEIGHT_MODE: {CFG.sample_weight_mode}")
     return {
         "ce": CFG.ce_weight * raw["ce"],
         "kd": CFG.kd_weight * raw["kd"],
@@ -855,6 +898,7 @@ def run_experiment() -> dict[str, object]:
             **pop_logit_stats(),
             **pop_dkd_stats(),
             **pop_dot_stats(),
+            **pop_sample_weight_stats(),
             "elapsed_seconds": time.time() - started_at,
             **{f"test_{key}": value for key, value in test_metrics.items()},
         }
