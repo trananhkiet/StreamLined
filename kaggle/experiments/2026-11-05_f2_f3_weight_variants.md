@@ -57,3 +57,33 @@ Plan + code + test CPU xong. **BLOCKER tài khoản 3: chưa có GPU.**
 - F2: https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-f2-hard-07-03 — version 1, submit ~17:32 UTC;
   notebook `kaggle/experiments/f2_hard_07_03.ipynb` (khác cấu hình F1 build từ cùng script đúng 2 dòng `SW_TRUST`/`SW_DISTRUST`), commit `db45c42`.
 - F3 (bản mềm) chạy sau khi quota refresh (2026-11-07 00:00 UTC).
+
+## Kết quả F2 (hard 0.7/0.3) — đã xác minh từ log Kaggle (tài khoản 2, version 1), 2026-11-06
+**Không bị cắt:** run COMPLETE đủ 300 epoch (Kaggle cho chạy vượt quota; quota sau run 109.041 s / 108.000 s). Có `summary.json` trong log.
+Config xác nhận: `sample_weight_mode=teacher_correct`, `sw_trust=0.7`, `sw_distrust=0.3`, `teacher_source=mdistiller`, `epochs=300`, `lr_milestones=[100,188,250]`, `seed=2021`.
+Log: `device: cuda`, teacher 72.41% / 92.50%.
+
+| | E4 | F1 (0.6/0.4) | **F2 (0.7/0.3)** | F2 − F1 | F2 − E4 |
+|---|---:|---:|---:|---:|---:|
+| **Test top-1 epoch 300** | 71.70 | 72.13 | **71.90** | −0.23 | +0.20 |
+| TB 10 epoch cuối | 71.73 | 72.14 | **72.04** | −0.10 | +0.31 |
+| Best top-1 (so với paper 72.50) | 72.10 (ep 291) | 72.32 (ep 293) | **72.23** (ep 292) | −0.09 | +0.13 |
+| Best top-5 | 93.02 | 92.83 | 92.91 | +0.08 | −0.11 |
+| Best test loss | 1.0421 | 1.0498 | 1.0443 | | |
+| Train top-1 cuối | 67.05 | 67.81 | 67.81 | 0.00 | +0.76 |
+| Runtime | 16.959 s | 17.332 s | 17.457 s | | |
+
+Đường cong F2: ep101 62.80 → ep189 69.23 → ep200 70.72 → ep251 71.49 → ep260 72.04 → ep300 71.90. Top-5 epoch: 292 (72.23), 294 (72.22), 273 (72.19), 275 (72.17), 291 (72.14).
+
+**Tỉ lệ ảnh train teacher đoán đúng (`teacher_train_top1`, lần đầu đo được):** 68.8–69.5%, trung bình **69.2%**, gần như không đổi qua các epoch
+(teacher cố định; ảnh train có augment weak + strong nên teacher đúng ít hơn so với 72.41% trên test sạch).
+→ Khoảng 69% ảnh nhận KD cao (0.7), 31% ảnh nhận KD thấp (0.3). Vì vậy F1/F2 vừa "tăng KD trung bình" (F1: 0.6·0.69 + 0.4·0.31 ≈ 0.54; F2 ≈ 0.58) vừa "giảm KD ở ảnh teacher sai".
+
+### Bài học (1 seed)
+- **Lệch mạnh hơn không tốt hơn:** F2 kém F1 ở cả 3 chỉ số (−0.23 epoch cuối, −0.10 TB 10 cuối, −0.09 best), nhưng vẫn hơn E4 (+0.20 / +0.31 / +0.13).
+  Mức 0.6/0.4 tốt hơn 0.7/0.3 → hiệu ứng không tăng đơn điệu theo mức lệch; nếu có điểm tối ưu thì nằm quanh hoặc dưới 0.6/0.4.
+- Chênh F2 − F1 (−0.1 đến −0.23) cùng cỡ với nhiễu seed đo ở E3 (~0.01–0.1) nên chỉ là tín hiệu yếu.
+- F2 không đạt ngưỡng ứng viên (epoch cuối 71.90 < 72.20).
+
+## Trạng thái (2026-11-06 01:35 UTC)
+F2 xong. **F3 chờ quota refresh 2026-11-07 00:00 UTC** (quota tài khoản 2 đã dùng hết: 109.041 s / 108.000 s). Lần trigger 01:27 UTC ngày 07/11 sẽ submit F3.

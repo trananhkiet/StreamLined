@@ -527,10 +527,25 @@ best **72.32%** (ep 293; cách paper 72.50 chỉ −0.18), top-5 92.83, runtime 
 - **BLOCKER:** smoke test trên tài khoản 3 chạy `device: cpu` dù đã yêu cầu T4 → tài khoản chưa được bật GPU (cần xác minh số điện thoại). Chưa submit F2/F3.
 
 
-### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-05 17:35 UTC (00:35 giờ Sài Gòn 06/11) — F2 đang chạy (tài khoản 2)
+### (Lịch sử) Trạng thái 2026-11-05 17:35 UTC — F2 đã submit; đã được thay bằng mục TRẠNG THÁI HIỆN TẠI bên dưới
 - Tài khoản 3 vẫn chưa có GPU → dùng lại **tài khoản 2** (`KAGGLE_KEY2`; Kaggle MCP đã kết nối lại tài khoản 2).
 - **F2 ĐÃ SUBMIT (đang chạy):** hard 0.7/0.3 trên nền F1 — https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-f2-hard-07-03,
   version 1, ~17:32 UTC, notebook `kaggle/experiments/f2_hard_07_03.ipynb`, commit `db45c42`.
 - Quota còn ~4,57h < ~4,8h cần → **dự kiến bị dừng ở ~epoch 284–290** (~22:10 UTC). Người dùng chấp nhận. So với F1 tại cùng mốc epoch cuối F2 đạt được.
 - Sau đó: **F3** (bản mềm CCKD, `SAMPLE_WEIGHT_MODE=teacher_prob`) sau khi quota refresh 2026-11-07 00:00 UTC.
 - **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.**
+
+
+### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-06 01:35 UTC (08:35 giờ Sài Gòn) — F2 xong, F3 chờ quota
+**F2 COMPLETE (đủ 300 epoch, Kaggle cho vượt quota):** epoch cuối **71.90**, TB 10 cuối 72.04, best 72.23 (ep 292), top-5 92.91, runtime 17.457 s.
+Kém F1 (−0.23 / −0.10 / −0.09), hơn E4 (+0.20 / +0.31 / +0.13). Lệch mạnh 0.7/0.3 không tốt hơn 0.6/0.4. Không đạt ngưỡng ứng viên (< 72.20).
+Teacher đoán đúng ~69.2% ảnh train (đo lần đầu qua log). Chi tiết: [experiments/2026-11-05_f2_f3_weight_variants.md](experiments/2026-11-05_f2_f3_weight_variants.md).
+
+| Run | Trọng số theo mẫu | Final (ep 300) | TB 10 cuối | Best |
+|---|---|---:|---:|---:|
+| E4 | không | 71.70 | 71.73 | 72.10 |
+| **F1** | hard 0.6/0.4 | **72.13** | **72.14** | **72.32** |
+| F2 | hard 0.7/0.3 | 71.90 | 72.04 | 72.23 |
+
+- Quota tài khoản 2: 109.041 s / 108.000 s (hết). **F3 (bản mềm CCKD) sẽ submit ở lần trigger 01:27 UTC ngày 07/11** (sau refresh 00:00 UTC).
+- **Chờ quota refresh 2026-11-07 00:00 UTC.**
