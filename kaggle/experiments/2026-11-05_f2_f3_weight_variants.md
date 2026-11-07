@@ -87,3 +87,9 @@ Log: `device: cuda`, teacher 72.41% / 92.50%.
 
 ## Trạng thái (2026-11-06 01:35 UTC)
 F2 xong. **F3 chờ quota refresh 2026-11-07 00:00 UTC** (quota tài khoản 2 đã dùng hết: 109.041 s / 108.000 s). Lần trigger 01:27 UTC ngày 07/11 sẽ submit F3.
+
+## F3 đã submit (2026-11-07 00:03 UTC)
+- Quota tài khoản 2 đã refresh (0 s / 108.000 s; lần refresh tiếp theo 2026-11-14 00:00 UTC).
+- F3: https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-f3-soft-cckd — version 1; notebook `kaggle/experiments/f3_soft_cckd.ipynb`
+  (khác cấu hình F1 build từ cùng script đúng dòng `SAMPLE_WEIGHT_MODE` = `teacher_prob`), commit `b7963cf`. Dự kiến xong ~04:55 UTC.
+- **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.**

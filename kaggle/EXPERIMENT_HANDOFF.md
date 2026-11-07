@@ -536,7 +536,7 @@ best **72.32%** (ep 293; cách paper 72.50 chỉ −0.18), top-5 92.83, runtime 
 - **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.**
 
 
-### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-06 01:35 UTC (08:35 giờ Sài Gòn) — F2 xong, F3 chờ quota
+### (Lịch sử) Trạng thái 2026-11-06 01:35 UTC — F2 xong; đã được thay bằng mục TRẠNG THÁI HIỆN TẠI bên dưới
 **F2 COMPLETE (đủ 300 epoch, Kaggle cho vượt quota):** epoch cuối **71.90**, TB 10 cuối 72.04, best 72.23 (ep 292), top-5 92.91, runtime 17.457 s.
 Kém F1 (−0.23 / −0.10 / −0.09), hơn E4 (+0.20 / +0.31 / +0.13). Lệch mạnh 0.7/0.3 không tốt hơn 0.6/0.4. Không đạt ngưỡng ứng viên (< 72.20).
 Teacher đoán đúng ~69.2% ảnh train (đo lần đầu qua log). Chi tiết: [experiments/2026-11-05_f2_f3_weight_variants.md](experiments/2026-11-05_f2_f3_weight_variants.md).
@@ -549,3 +549,12 @@ Teacher đoán đúng ~69.2% ảnh train (đo lần đầu qua log). Chi tiết:
 
 - Quota tài khoản 2: 109.041 s / 108.000 s (hết). **F3 (bản mềm CCKD) sẽ submit ở lần trigger 01:27 UTC ngày 07/11** (sau refresh 00:00 UTC).
 - **Chờ quota refresh 2026-11-07 00:00 UTC.**
+
+
+### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-07 00:10 UTC (07:10 giờ Sài Gòn) — F3 đang chạy (tài khoản 2)
+- Lịch scheduler v5 (người dùng chỉ định): cron "1 0,5,10,15,20 * * *" UTC = 07:01, 12:01, 17:01, 22:01, 03:01 giờ Sài Gòn.
+- Quota tài khoản 2 đã refresh (0 s / 108.000 s; refresh tiếp 2026-11-14 00:00 UTC).
+- **F3 ĐÃ SUBMIT (đang chạy):** bản mềm kiểu CCKD w_i = 0.4 + 0.2·p_teacher(nhãn đúng) trên nền F1 —
+  https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-f3-soft-cckd, version 1, ~00:03 UTC, notebook `kaggle/experiments/f3_soft_cckd.ipynb`, commit `b7963cf`.
+- So với F1 (72.13 / 72.14 / 72.32), F2 (71.90 / 72.04 / 72.23), E4 (71.70 / 71.73 / 72.10). Dự kiến xong ~04:55 UTC.
+- **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.** Khi xong: tổng kết F1/F2/F3 rồi tắt scheduler.
