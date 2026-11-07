@@ -578,7 +578,7 @@ Teacher đoán đúng ~69.2% ảnh train (đo lần đầu qua log). Chi tiết:
 - Chờ người dùng chọn bước tiếp: F1 + E4 seed 2022; mức lệch 0.55/0.45; hoặc F4 (chuyển dần sang học nhãn).
 
 
-### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-07 07:10 UTC (14:10 giờ Sài Gòn) — KẾ HOẠCH G1 / F4: G1 ĐANG CHẠY
+### (Lịch sử) Trạng thái 2026-11-07 07:10 UTC — G1 đang chạy; đã được thay bằng mục TRẠNG THÁI HIỆN TẠI bên dưới
 - **G1** (nền E4): sửa nhãn mềm teacher ở ảnh nó đoán sai bằng cách hoán đổi logit lớp sai ↔ lớp đúng (`TEACHER_CORRECTION=swap`). Notebook `kaggle/experiments/g1_teacher_swap.ipynb`.
 - **F4** (nền F1): từ epoch 251 nhân trọng số KD (w_i) và BC với 0.5, CE nhận phần còn lại (`LATE_KD_START=251`, `LATE_KD_SCALE=0.5`). Notebook `kaggle/experiments/f4_late_ce.ipynb`.
 - Chi tiết, kiểm tra, luật quyết định: [experiments/2026-11-07_g1_f4_teacher_fix_and_late_ce.md](experiments/2026-11-07_g1_f4_teacher_fix_and_late_ce.md). Code + test CPU xong (các chế độ cũ bit-exact).
@@ -587,4 +587,22 @@ Teacher đoán đúng ~69.2% ảnh train (đo lần đầu qua log). Chi tiết:
 - **G1 ĐÃ SUBMIT (đang chạy):** https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-g1-teacher-swap — version 1, 2026-11-07 07:00 UTC, commit `03bfda1`;
   dataset, Docker image ghim, T4 đã xác minh, RUNNING. Quota tài khoản 2: 5,4h/30h trước run này. Dự kiến xong ~12:00–12:30 UTC.
 - Lịch kế tiếp (giờ Sài Gòn, mỗi 5h): 19:00 → 00:00 → 05:00 → 10:00. F4 submit khi G1 đọc xong (khả năng ở lần 00:00 ngày 08/11).
+- **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.**
+
+
+### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-07 13:10 UTC (20:10 giờ Sài Gòn) — G1 xong, F4 đang chạy
+**G1 COMPLETE** (hoán đổi logit teacher khi sai, nền E4): epoch cuối **71.44**, TB 10 cuối **71.77**, best **72.09** (ep 285), top-5 93.16, runtime 18.380 s.
+≈ E4 (71.70 / 71.73 / 72.10), kém F1 (72.13 / 72.14 / 72.32); không đạt ngưỡng. Teacher sai ở 30.8% ảnh train. Chi tiết: [experiments/2026-11-07_g1_f4_teacher_fix_and_late_ce.md](experiments/2026-11-07_g1_f4_teacher_fix_and_late_ce.md).
+
+**F4 ĐÃ SUBMIT (đang chạy):** nền F1 + từ epoch 251 nhân KD/BC với 0.5 — https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-f4-late-ce, version 1, 2026-11-07 13:05 UTC,
+notebook `kaggle/experiments/f4_late_ce.ipynb` (commit `03bfda1`). Quota tài khoản 2: 10,5h/30h trước F4 (còn ~19,5h). Dự kiến xong ~18:05–18:30 UTC.
+
+| Run | Final | TB 10 cuối | Best |
+|---|---:|---:|---:|
+| E4 | 71.70 | 71.73 | 72.10 |
+| F1 | 72.13 | 72.14 | 72.32 |
+| G1 | 71.44 | 71.77 | 72.09 |
+| F4 | (đang chạy) | | |
+
+- Scheduler v5: cron "CRON_TZ=Asia/Saigon 0 2,8,14,20 * * *" (mỗi 6h). Lần kế tiếp 02:00 giờ Sài Gòn 08/11: đọc F4, tổng kết E4/F1/G1/F4, tắt scheduler.
 - **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.**

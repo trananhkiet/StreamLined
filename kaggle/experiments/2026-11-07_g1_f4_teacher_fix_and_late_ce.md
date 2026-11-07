@@ -41,10 +41,37 @@ Người dùng chọn (2026-11-07), sau kế hoạch F (F1 tốt nhất: 72.13 e
 - Tài khoản 2 (`kitit5512trn`), T4, dataset `fedesoriano/cifar100`, internet bật. ~5 giờ mỗi run. Mỗi lần trigger submit tối đa một run.
 
 ## Trạng thái
-Chuẩn bị xong (code + notebook + test).
+Chuẩn bị xong (code + notebook + test). G1 xong (xem kết quả bên dưới); F4 đã submit.
 
 ### G1 đã submit (2026-11-07 07:00 UTC = 14:00 giờ Sài Gòn)
 - https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-g1-teacher-swap — **version 1**; notebook `kaggle/experiments/g1_teacher_swap.ipynb` (commit `03bfda1`).
 - `kaggle kernels pull -m` xác nhận dataset `fedesoriano/cifar100`, Docker image ghim, T4, internet bật; RUNNING sau ~3,5 phút (đã qua bước tải và kiểm tra teacher).
 - Quota tài khoản 2 trước khi submit: 19.428 s / 108.000 s (5,4h) → còn ~24,6h. Dự kiến xong ~12:00 UTC (19:00 giờ Sài Gòn), có thể muộn đến ~12:30 UTC.
 - **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.** F4 submit sau khi G1 đọc xong.
+
+## Kết quả G1 (hoán đổi logit teacher khi sai) — đã xác minh từ log Kaggle (tài khoản 2, version 1), 2026-11-07
+Config xác nhận: `teacher_correction=swap`, `sample_weight_mode=none`, `teacher_source=mdistiller`, `epochs=300`, `lr_milestones=[100,188,250]`, `seed=2021`.
+Log: `device: cuda`, teacher 72.41% / 92.50%. Runtime 18.380 s (~5,1 giờ).
+
+| | E4 | F1 | **G1** | G1 − E4 | G1 − F1 |
+|---|---:|---:|---:|---:|---:|
+| **Test top-1 epoch 300** | 71.70 | 72.13 | **71.44** | −0.26 | −0.69 |
+| TB 10 epoch cuối | 71.73 | 72.14 | **71.77** | +0.04 | −0.37 |
+| Best top-1 (so với paper 72.50) | 72.10 | 72.32 | **72.09** (ep 285) | −0.01 | −0.23 |
+| Best top-5 | 93.02 | 92.83 | **93.16** | +0.14 | +0.33 |
+| Best test loss | 1.0421 | 1.0498 | 1.0347 | −0.007 | −0.015 |
+| Train top-1 cuối | 67.05 | 67.81 | 67.91 | +0.86 | +0.10 |
+
+Đường cong G1: ep101 62.47 → ep189 69.70 → ep200 70.53 → ep251 71.67 → ep260 71.76 → ep280 71.59 → ep300 71.44.
+`teacher_swapped` (% ảnh train có teacher sai, được sửa nhãn): TB **30.83%** (30.50–31.17) → teacher đúng ~69.2% ảnh train, khớp số đo ở F1/F2.
+Top-5 epoch theo test top-1: 285 (72.09), 292 (72.03), 278/281 (71.98), 269 (71.96).
+
+### Bài học (1 seed)
+- **G1 ≈ E4**, kém F1: TB 10 cuối +0.04, best −0.01, epoch cuối −0.26 (epoch 300 rơi xuống dưới mức TB 10 cuối 0.33 → nhiễu giữa các epoch cuối, nên TB 10 cuối đáng tin hơn). Không đạt ngưỡng ứng viên (< 72.20).
+- Sửa nhãn mềm của teacher **không thay được** việc giảm trọng số KD ở ảnh teacher sai (F1). Top-5 và test loss của G1 tốt hơn E4 nhẹ (93.16 vs 93.02; 1.035 vs 1.042) → xếp hạng lớp tốt hơn chút nhưng top-1 không tăng.
+- Giả thuyết giải thích (chưa kiểm chứng): lợi ích của F1 đến từ việc **bớt ép student theo teacher ở 31% ảnh khó** (nhiều ảnh trong đó cũng khó với student), chứ không phải vì nhãn mềm bị "lệch lớp"; hoán đổi logit vẫn buộc student khớp một phân phối được dựng tay trên những ảnh teacher không nắm vững.
+
+## F4 đã submit (2026-11-07 13:05 UTC = 20:05 giờ Sài Gòn)
+- https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-f4-late-ce — **version 1**; notebook `kaggle/experiments/f4_late_ce.ipynb` (không đổi từ commit `03bfda1`).
+- Quota tài khoản 2 trước khi submit: 37.854 s / 108.000 s (10,5h) → còn ~19,5h. Dự kiến xong ~18:05–18:30 UTC (01:05–01:30 giờ Sài Gòn 08/11).
+- **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.**
