@@ -41,7 +41,7 @@ Người dùng chọn (2026-11-07), sau kế hoạch F (F1 tốt nhất: 72.13 e
 - Tài khoản 2 (`kitit5512trn`), T4, dataset `fedesoriano/cifar100`, internet bật. ~5 giờ mỗi run. Mỗi lần trigger submit tối đa một run.
 
 ## Trạng thái
-Chuẩn bị xong (code + notebook + test). G1 xong (xem kết quả bên dưới); F4 đã submit.
+Chuẩn bị xong (code + notebook + test). G1 và F4 đều xong (xem kết quả bên dưới).
 
 ### G1 đã submit (2026-11-07 07:00 UTC = 14:00 giờ Sài Gòn)
 - https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-g1-teacher-swap — **version 1**; notebook `kaggle/experiments/g1_teacher_swap.ipynb` (commit `03bfda1`).
@@ -75,3 +75,42 @@ Top-5 epoch theo test top-1: 285 (72.09), 292 (72.03), 278/281 (71.98), 269 (71.
 - https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-f4-late-ce — **version 1**; notebook `kaggle/experiments/f4_late_ce.ipynb` (không đổi từ commit `03bfda1`).
 - Quota tài khoản 2 trước khi submit: 37.854 s / 108.000 s (10,5h) → còn ~19,5h. Dự kiến xong ~18:05–18:30 UTC (01:05–01:30 giờ Sài Gòn 08/11).
 - **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.**
+
+## Kết quả F4 (giảm KD, tăng CE từ epoch 251) — đã xác minh từ log Kaggle (tài khoản 2, version 1), 2026-11-08
+Config xác nhận: `sample_weight_mode=teacher_correct`, `sw_trust=0.6`, `sw_distrust=0.4`, `late_kd_start=251`, `late_kd_scale=0.5`, `teacher_correction=none`,
+`teacher_source=mdistiller`, `epochs=300`, `lr_milestones=[100,188,250]`, `seed=2021`. Log: `device: cuda`, teacher 72.41% / 92.50%. Runtime 17.046 s (~4,73 giờ).
+
+**Kiểm tra tính tất định:** F4 trùng F1 *từng số* ở epoch 100, 101, 188, 189, 200, 250 (ví dụ ep250 test 70.63%, train 65.50%) → hai run tách nhau đúng tại epoch 251 như thiết kế.
+
+| | E4 | F1 | **F4** | F4 − F1 |
+|---|---:|---:|---:|---:|
+| **Test top-1 epoch 300** | 71.70 | **72.13** | **71.83** | −0.30 |
+| TB 10 epoch cuối | 71.73 | **72.14** | **72.03** | −0.11 |
+| Best top-1 (so với paper 72.50) | 72.10 | **72.32** | **72.32** (ep 297) | 0.00 |
+| Best top-5 | 93.02 | 92.83 | 92.64 | −0.19 |
+| Best test loss | 1.0421 | 1.0498 | 1.0353 | −0.015 |
+| **Train top-1 cuối** | 67.05 | 67.81 | **69.36** | **+1.55** |
+| Runtime | 16.959 s | 17.332 s | 17.046 s | |
+
+Giai đoạn cuối (sau khi tách ở epoch 251): ep251 F1 71.86 vs F4 71.80; ep260 72.21 vs 72.20; ep280 71.93 vs 71.98; ep300 72.13 vs 71.83. Top-5 epoch: 297 (72.32), 293 (72.24), 270/278/289 (72.23).
+`teacher_train_top1` TB 69.17% (như F1/F2).
+
+### Bài học (1 seed)
+- **F4 không cải thiện F1**: epoch cuối −0.30, TB 10 cuối −0.11, best bằng nhau (72.32). Chênh lệch nằm trong biên nhiễu giữa các epoch cuối (~0.2–0.3). Không đạt ngưỡng ứng viên (< 72.20).
+- **Train top-1 tăng +1.55 (67.81 → 69.36) nhưng test không tăng**: dịch trọng số sang CE khiến student khớp nhãn train tốt hơn (bắt đầu tách teacher) mà không tổng quát tốt hơn → khoảng cách train–test rộng ra, dấu hiệu overfit nhẹ; KD vẫn có vai trò regularization ở LR cuối.
+- Giả thuyết "student bằng teacher thì nên học theo nhãn" **chưa được ủng hộ** ở dạng chuyển theo giai đoạn (scale 0.5, từ epoch 251). Chưa thử dạng theo từng ảnh (F4b) hay mức khác.
+
+## TỔNG KẾT KẾ HOẠCH G1 / F4 (seed 2021, nền E4: teacher mdistiller, 300 epoch, 100/188/250)
+| Run | Thay đổi | Epoch cuối | TB 10 cuối | Best |
+|---|---|---:|---:|---:|
+| E4 | không | 71.70 | 71.73 | 72.10 |
+| **F1** | trọng số theo teacher đúng/sai 0.6/0.4 | **72.13** | **72.14** | **72.32** |
+| F2 | 0.7/0.3 | 71.90 | 72.04 | 72.23 |
+| F3 | mềm 0.4 + 0.2·p | 71.73 | 71.77 | 71.97 |
+| G1 | hoán đổi logit khi teacher sai | 71.44 | 71.77 | 72.09 |
+| F4 | F1 + giảm KD/BC ×0.5 từ epoch 251 | 71.83 | 72.03 | 72.32 |
+
+- **F1 vẫn tốt nhất**; G1 và F4 không vượt F1 và không đạt ngưỡng ứng viên (≥ 72.20 epoch cuối). Mọi biến thể quanh F1 (F2, F3, G1, F4) đều không hơn → F1 nằm ở vùng khá phẳng quanh 72.0–72.3.
+- Nhiễu giữa các epoch cuối ~0.2–0.3 điểm (ví dụ G1: epoch 300 thấp hơn TB 10 cuối 0.33) — ngang cỡ chênh lệch giữa nhiều biến thể; cần ≥ 2 seed để phân biệt các biến thể sát nhau.
+- Gợi ý (chờ người dùng): (1) **F1 seed 2022 + E4 seed 2022** (~9,7h, quota còn ~14,8h tới 14/11) để kiểm chứng F1 hơn E4 thật; (2) chỉ khi F1 được xác nhận mới tinh chỉnh thêm (mức 0.55/0.45, F4b theo từng ảnh);
+  (3) hoặc chuyển sang thay đổi ngoài loss (ví dụ cấu hình huấn luyện) vì các biến thể loss quanh F1 đã bão hòa.

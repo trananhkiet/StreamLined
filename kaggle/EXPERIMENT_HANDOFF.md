@@ -590,7 +590,7 @@ Teacher đoán đúng ~69.2% ảnh train (đo lần đầu qua log). Chi tiết:
 - **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.**
 
 
-### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-07 13:10 UTC (20:10 giờ Sài Gòn) — G1 xong, F4 đang chạy
+### (Lịch sử) Trạng thái 2026-11-07 13:10 UTC — G1 xong, F4 đang chạy; đã được thay bằng mục TRẠNG THÁI HIỆN TẠI bên dưới
 **G1 COMPLETE** (hoán đổi logit teacher khi sai, nền E4): epoch cuối **71.44**, TB 10 cuối **71.77**, best **72.09** (ep 285), top-5 93.16, runtime 18.380 s.
 ≈ E4 (71.70 / 71.73 / 72.10), kém F1 (72.13 / 72.14 / 72.32); không đạt ngưỡng. Teacher sai ở 30.8% ảnh train. Chi tiết: [experiments/2026-11-07_g1_f4_teacher_fix_and_late_ce.md](experiments/2026-11-07_g1_f4_teacher_fix_and_late_ce.md).
 
@@ -606,3 +606,22 @@ notebook `kaggle/experiments/f4_late_ce.ipynb` (commit `03bfda1`). Quota tài kh
 
 - Scheduler v5: cron "CRON_TZ=Asia/Saigon 0 2,8,14,20 * * *" (mỗi 6h). Lần kế tiếp 02:00 giờ Sài Gòn 08/11: đọc F4, tổng kết E4/F1/G1/F4, tắt scheduler.
 - **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.**
+
+
+### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-07 19:15 UTC (02:15 giờ Sài Gòn 08/11) — KẾ HOẠCH G1 / F4 HOÀN TẤT, scheduler đã tắt
+**F4 COMPLETE** (F1 + giảm KD/BC ×0.5 từ epoch 251): epoch cuối **71.83**, TB 10 cuối **72.03**, best **72.32** (ep 297), top-5 92.64, train top-1 cuối 69.36 (F1: 67.81), runtime 17.046 s.
+Trùng F1 từng số tới epoch 250 rồi tách đúng tại 251; sau đó không tốt hơn F1 (−0.30 / −0.11 / 0.00) dù train top-1 tăng +1.55 → học nhãn nhiều hơn chỉ làm student khớp train hơn, không tăng test.
+
+**Bảng tổng kết (seed 2021, teacher mdistiller 72.41, 300 epoch, 100/188/250):**
+| Run | Thay đổi | Epoch cuối | TB 10 cuối | Best |
+|---|---|---:|---:|---:|
+| E4 | không | 71.70 | 71.73 | 72.10 |
+| **F1** | teacher đúng/sai 0.6/0.4 | **72.13** | **72.14** | **72.32** |
+| F2 | 0.7/0.3 | 71.90 | 72.04 | 72.23 |
+| F3 | mềm kiểu CCKD | 71.73 | 71.77 | 71.97 |
+| G1 | hoán đổi logit khi teacher sai | 71.44 | 71.77 | 72.09 |
+| F4 | F1 + giảm KD/BC từ ep 251 | 71.83 | 72.03 | 72.32 |
+
+- **F1 vẫn tốt nhất**; không biến thể nào (F2, F3, G1, F4) vượt F1 hay đạt ngưỡng ≥ 72.20. Nhiễu giữa epoch cuối ~0.2–0.3 → cần ≥ 2 seed để phân biệt. Chi tiết: [experiments/2026-11-07_g1_f4_teacher_fix_and_late_ce.md](experiments/2026-11-07_g1_f4_teacher_fix_and_late_ce.md).
+- Scheduler v5 (`trig_01Sh2GBEHeb1grKfyRJfr7nk`) đã tắt (`enabled=false`). Không còn run nào đang chạy. Quota tài khoản 2 ~15,2h/30h đã dùng (còn ~14,8h; refresh 2026-11-14 00:00 UTC). Tài khoản 3 vẫn chưa có GPU.
+- Chờ người dùng chọn: F1 seed 2022 + E4 seed 2022 (~9,7h) để xác nhận; hoặc hướng khác ngoài loss.
