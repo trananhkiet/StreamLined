@@ -41,4 +41,10 @@ Người dùng chọn (2026-11-07), sau kế hoạch F (F1 tốt nhất: 72.13 e
 - Tài khoản 2 (`kitit5512trn`), T4, dataset `fedesoriano/cifar100`, internet bật. ~5 giờ mỗi run. Mỗi lần trigger submit tối đa một run.
 
 ## Trạng thái
-Chuẩn bị xong (code + notebook + test). Chờ scheduler lần 14:00 giờ Sài Gòn 07/11 submit G1.
+Chuẩn bị xong (code + notebook + test).
+
+### G1 đã submit (2026-11-07 07:00 UTC = 14:00 giờ Sài Gòn)
+- https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-g1-teacher-swap — **version 1**; notebook `kaggle/experiments/g1_teacher_swap.ipynb` (commit `03bfda1`).
+- `kaggle kernels pull -m` xác nhận dataset `fedesoriano/cifar100`, Docker image ghim, T4, internet bật; RUNNING sau ~3,5 phút (đã qua bước tải và kiểm tra teacher).
+- Quota tài khoản 2 trước khi submit: 19.428 s / 108.000 s (5,4h) → còn ~24,6h. Dự kiến xong ~12:00 UTC (19:00 giờ Sài Gòn), có thể muộn đến ~12:30 UTC.
+- **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.** F4 submit sau khi G1 đọc xong.

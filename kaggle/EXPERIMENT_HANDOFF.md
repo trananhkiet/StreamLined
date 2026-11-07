@@ -578,10 +578,13 @@ Teacher đoán đúng ~69.2% ảnh train (đo lần đầu qua log). Chi tiết:
 - Chờ người dùng chọn bước tiếp: F1 + E4 seed 2022; mức lệch 0.55/0.45; hoặc F4 (chuyển dần sang học nhãn).
 
 
-### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-07 06:55 UTC (13:55 giờ Sài Gòn) — KẾ HOẠCH G1 / F4 (người dùng chọn)
+### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-07 07:10 UTC (14:10 giờ Sài Gòn) — KẾ HOẠCH G1 / F4: G1 ĐANG CHẠY
 - **G1** (nền E4): sửa nhãn mềm teacher ở ảnh nó đoán sai bằng cách hoán đổi logit lớp sai ↔ lớp đúng (`TEACHER_CORRECTION=swap`). Notebook `kaggle/experiments/g1_teacher_swap.ipynb`.
 - **F4** (nền F1): từ epoch 251 nhân trọng số KD (w_i) và BC với 0.5, CE nhận phần còn lại (`LATE_KD_START=251`, `LATE_KD_SCALE=0.5`). Notebook `kaggle/experiments/f4_late_ce.ipynb`.
 - Chi tiết, kiểm tra, luật quyết định: [experiments/2026-11-07_g1_f4_teacher_fix_and_late_ce.md](experiments/2026-11-07_g1_f4_teacher_fix_and_late_ce.md). Code + test CPU xong (các chế độ cũ bit-exact).
 - Tài khoản 2 (quota ~5,4h/30h; refresh 2026-11-14 00:00 UTC). Tài khoản 3 vẫn chưa có GPU.
 - Scheduler v5 (người dùng chỉ định): lần đầu **14:00 giờ Sài Gòn 07/11**, sau đó mỗi 5 giờ (chuỗi hẹn một lần). Thứ tự: submit G1 → đọc G1, submit F4 → đọc F4, tổng kết, tắt trigger.
-- Chưa submit gì. **Đang chờ scheduler 14:00 submit G1.**
+- **G1 ĐÃ SUBMIT (đang chạy):** https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-g1-teacher-swap — version 1, 2026-11-07 07:00 UTC, commit `03bfda1`;
+  dataset, Docker image ghim, T4 đã xác minh, RUNNING. Quota tài khoản 2: 5,4h/30h trước run này. Dự kiến xong ~12:00–12:30 UTC.
+- Lịch kế tiếp (giờ Sài Gòn, mỗi 5h): 19:00 → 00:00 → 05:00 → 10:00. F4 submit khi G1 đọc xong (khả năng ở lần 00:00 ngày 08/11).
+- **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.**
