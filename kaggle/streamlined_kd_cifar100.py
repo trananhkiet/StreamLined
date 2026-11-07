@@ -84,6 +84,14 @@ class Config:
     sample_weight_mode: str = os.getenv("SAMPLE_WEIGHT_MODE", "none")
     sw_trust: float = float(os.getenv("SW_TRUST", "0.6"))
     sw_distrust: float = float(os.getenv("SW_DISTRUST", "0.4"))
+    # Plan item "G1": "swap" fixes the teacher's soft label on training samples it misclassifies by swapping the logit of its
+    # predicted (wrong) class with the logit of the true class; applied to the teacher logits used by KD, BC and the masks.
+    # Evaluation of the teacher on the test set is untouched. "none" (default) keeps every previous experiment unchanged.
+    teacher_correction: str = os.getenv("TEACHER_CORRECTION", "none")
+    # Plan item "F4": from epoch `late_kd_start` (1-indexed, 0 = off) the KD weight w_i and the BC weight are multiplied by
+    # `late_kd_scale`, so CE gets 1 - scale * w_i. Only defined on top of SAMPLE_WEIGHT_MODE=teacher_correct / teacher_prob.
+    late_kd_start: int = int(os.getenv("LATE_KD_START", "0"))
+    late_kd_scale: float = float(os.getenv("LATE_KD_SCALE", "0.5"))
 
     @property
     def bc_weight(self) -> float:
@@ -508,16 +516,40 @@ def teacher_correct_weights(teacher_logits: torch.Tensor, labels: torch.Tensor) 
 
 
 SAMPLE_WEIGHT_STATS = {"correct": 0.0, "total": 0.0, "p_label_sum": 0.0}
+CORRECTION_STATS = {"swapped": 0.0, "total": 0.0}
+
+
+def swap_wrong_teacher_logits(teacher_logits: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+    """G1: where argmax(teacher) != label, swap the logits of the predicted class and the true class."""
+    top = teacher_logits.argmax(dim=1)
+    wrong = top.ne(labels)
+    CORRECTION_STATS["swapped"] += wrong.sum().item()
+    CORRECTION_STATS["total"] += float(wrong.numel())
+    if not bool(wrong.any()):
+        return teacher_logits
+    rows = torch.arange(teacher_logits.size(0), device=teacher_logits.device)
+    logit_top = teacher_logits[rows, top]
+    logit_label = teacher_logits[rows, labels]
+    corrected = teacher_logits.clone()
+    corrected[rows, labels] = torch.where(wrong, logit_top, logit_label)
+    corrected[rows, top] = torch.where(wrong, logit_label, logit_top)
+    return corrected
 
 
 def pop_sample_weight_stats() -> dict[str, float]:
     """Share (%) of training samples the teacher classifies correctly (= samples that get KD weight sw_trust)."""
+    extra: dict[str, float] = {}
+    if CFG.teacher_correction != "none":
+        extra["teacher_swapped_pct"] = 100.0 * CORRECTION_STATS["swapped"] / max(CORRECTION_STATS["total"], 1.0)
+        for key in CORRECTION_STATS:
+            CORRECTION_STATS[key] = 0.0
     if CFG.sample_weight_mode == "none":
-        return {}
+        return extra
     total = max(SAMPLE_WEIGHT_STATS["total"], 1.0)
     stats = {"teacher_train_top1_sw": 100.0 * SAMPLE_WEIGHT_STATS["correct"] / total}
     if CFG.sample_weight_mode == "teacher_prob":
         stats["teacher_p_label_mean"] = SAMPLE_WEIGHT_STATS["p_label_sum"] / total
+    stats.update(extra)
     for key in SAMPLE_WEIGHT_STATS:
         SAMPLE_WEIGHT_STATS[key] = 0.0
     return stats
@@ -532,13 +564,19 @@ def distillation_losses(student_logits: torch.Tensor, teacher_logits: torch.Tens
         if CFG.kd_mask_mode != "scalar":
             raise ValueError("SAMPLE_WEIGHT_MODE is defined on top of KD_MASK_MODE=scalar")
         weights = teacher_correct_weights(teacher_logits, labels)
+        bc_scale = 1.0
+        if CFG.late_kd_start and CURRENT_EPOCH["value"] >= CFG.late_kd_start and CFG.late_kd_scale != 1.0:
+            weights = weights * CFG.late_kd_scale
+            bc_scale = CFG.late_kd_scale
         ce_per_sample = F.cross_entropy(student_logits, labels, reduction="none")
         kl_per_sample = kd_loss(student_logits, teacher_logits, CFG.temperature, per_sample=True)
         return {
             "ce": ((1.0 - weights) * ce_per_sample).mean(),
             "kd": (weights * kl_per_sample).mean() * raw["kd_mask_fraction"],
-            "bc": CFG.bc_weight * raw["bc"],
+            "bc": CFG.bc_weight * raw["bc"] if bc_scale == 1.0 else CFG.bc_weight * bc_scale * raw["bc"],
         }
+    if CFG.late_kd_start:
+        raise ValueError("LATE_KD_START requires SAMPLE_WEIGHT_MODE=teacher_correct or teacher_prob")
     if CFG.sample_weight_mode != "none":
         raise ValueError(f"Unknown SAMPLE_WEIGHT_MODE: {CFG.sample_weight_mode}")
     return {
@@ -731,6 +769,10 @@ def train_one_epoch(student: nn.Module, teacher: nn.Module, loader: DataLoader, 
         labels = labels.to(DEVICE, non_blocking=True)
         with torch.no_grad():
             teacher_logits = teacher(images)
+            if CFG.teacher_correction == "swap":
+                teacher_logits = swap_wrong_teacher_logits(teacher_logits, labels)
+            elif CFG.teacher_correction != "none":
+                raise ValueError(f"Unknown TEACHER_CORRECTION: {CFG.teacher_correction}")
         student_logits = student(images)
         losses = distillation_losses(student_logits, teacher_logits, labels)
         if CFG.grad_log_every and batch_index % CFG.grad_log_every == 0:
@@ -918,6 +960,7 @@ def run_experiment() -> dict[str, object]:
             f"best={max(best_top1, row['test_top1']):.2f}"
             + (f" | teacher_train_top1={row['teacher_train_top1_sw']:.2f}" if "teacher_train_top1_sw" in row else "")
             + (f" | p_label={row['teacher_p_label_mean']:.4f}" if "teacher_p_label_mean" in row else "")
+            + (f" | teacher_swapped={row['teacher_swapped_pct']:.2f}" if "teacher_swapped_pct" in row else "")
         )
         if test_metrics["top1"] > best_top1:
             best_top1 = test_metrics["top1"]

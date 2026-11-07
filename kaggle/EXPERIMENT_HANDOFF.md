@@ -560,7 +560,7 @@ Teacher đoán đúng ~69.2% ảnh train (đo lần đầu qua log). Chi tiết:
 - **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.** Khi xong: tổng kết F1/F2/F3 rồi tắt scheduler.
 
 
-### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-07 06:10 UTC (13:10 giờ Sài Gòn) — KẾ HOẠCH F (F1/F2/F3) HOÀN TẤT, scheduler đã tắt
+### (Lịch sử) Trạng thái 2026-11-07 06:10 UTC — kế hoạch F hoàn tất; đã được thay bằng mục TRẠNG THÁI HIỆN TẠI bên dưới
 **F3 COMPLETE** (bản mềm kiểu CCKD): epoch cuối 71.73, TB 10 cuối 71.77, best 71.97 (ep 299), runtime 19.368 s. p_label TB 0.645 → KD TB ≈ 0.53.
 ≈ E4, kém F1 (−0.40). Chi tiết: [experiments/2026-11-05_f2_f3_weight_variants.md](experiments/2026-11-05_f2_f3_weight_variants.md).
 
@@ -576,3 +576,12 @@ Teacher đoán đúng ~69.2% ảnh train (đo lần đầu qua log). Chi tiết:
 - Scheduler v5 (`trig_01Sh2GBEHeb1grKfyRJfr7nk`) đã tắt (`enabled=false`). Không còn run nào đang chạy.
 - Quota tài khoản 2 tuần này: ~5,4h/30h đã dùng (F3); refresh 2026-11-14 00:00 UTC. Tài khoản 3 vẫn chưa có GPU.
 - Chờ người dùng chọn bước tiếp: F1 + E4 seed 2022; mức lệch 0.55/0.45; hoặc F4 (chuyển dần sang học nhãn).
+
+
+### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-07 06:55 UTC (13:55 giờ Sài Gòn) — KẾ HOẠCH G1 / F4 (người dùng chọn)
+- **G1** (nền E4): sửa nhãn mềm teacher ở ảnh nó đoán sai bằng cách hoán đổi logit lớp sai ↔ lớp đúng (`TEACHER_CORRECTION=swap`). Notebook `kaggle/experiments/g1_teacher_swap.ipynb`.
+- **F4** (nền F1): từ epoch 251 nhân trọng số KD (w_i) và BC với 0.5, CE nhận phần còn lại (`LATE_KD_START=251`, `LATE_KD_SCALE=0.5`). Notebook `kaggle/experiments/f4_late_ce.ipynb`.
+- Chi tiết, kiểm tra, luật quyết định: [experiments/2026-11-07_g1_f4_teacher_fix_and_late_ce.md](experiments/2026-11-07_g1_f4_teacher_fix_and_late_ce.md). Code + test CPU xong (các chế độ cũ bit-exact).
+- Tài khoản 2 (quota ~5,4h/30h; refresh 2026-11-14 00:00 UTC). Tài khoản 3 vẫn chưa có GPU.
+- Scheduler v5 (người dùng chỉ định): lần đầu **14:00 giờ Sài Gòn 07/11**, sau đó mỗi 5 giờ (chuỗi hẹn một lần). Thứ tự: submit G1 → đọc G1, submit F4 → đọc F4, tổng kết, tắt trigger.
+- Chưa submit gì. **Đang chờ scheduler 14:00 submit G1.**
