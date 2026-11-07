@@ -93,3 +93,40 @@ F2 xong. **F3 chờ quota refresh 2026-11-07 00:00 UTC** (quota tài khoản 2 �
 - F3: https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-f3-soft-cckd — version 1; notebook `kaggle/experiments/f3_soft_cckd.ipynb`
   (khác cấu hình F1 build từ cùng script đúng dòng `SAMPLE_WEIGHT_MODE` = `teacher_prob`), commit `b7963cf`. Dự kiến xong ~04:55 UTC.
 - **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.**
+
+## Kết quả F3 (bản mềm kiểu CCKD) — đã xác minh từ log Kaggle (tài khoản 2, version 1), 2026-11-07
+Config xác nhận: `sample_weight_mode=teacher_prob`, `sw_trust=0.6`, `sw_distrust=0.4`, `teacher_source=mdistiller`, `epochs=300`, `lr_milestones=[100,188,250]`, `seed=2021`.
+Log: `device: cuda`, teacher 72.41% / 92.50%. Runtime 19.368 s (~5,38 giờ, chậm hơn F1/F2 ~0,5 giờ; nguyên nhân chưa rõ).
+
+| | E4 | F1 (hard 0.6/0.4) | F2 (hard 0.7/0.3) | **F3 (mềm 0.4 + 0.2·p)** | F3 − F1 | F3 − E4 |
+|---|---:|---:|---:|---:|---:|---:|
+| **Test top-1 epoch 300** | 71.70 | **72.13** | 71.90 | **71.73** | −0.40 | +0.03 |
+| TB 10 epoch cuối | 71.73 | **72.14** | 72.04 | **71.77** | −0.37 | +0.04 |
+| Best top-1 (so với paper 72.50) | 72.10 | **72.32** | 72.23 | **71.97** (ep 299) | −0.35 | −0.13 |
+| Best top-5 | 93.02 | 92.83 | 92.91 | 92.95 | | |
+| Best test loss | 1.0421 | 1.0498 | 1.0443 | 1.0630 | | |
+| Train top-1 cuối | 67.05 | 67.81 | 67.81 | 67.77 | | |
+
+Đường cong F3: ep101 62.82 → ep189 69.29 → ep200 70.57 → ep251 71.24 → ep260 71.48 → ep300 71.73.
+`p_label` (xác suất teacher gán cho nhãn đúng, trung bình theo epoch) = **0.645** (0.642–0.647), `teacher_train_top1` = 69.2% (giống F2).
+→ Trọng số KD trung bình của F3 ≈ 0.4 + 0.2·0.645 = **0.529** (F1 ≈ 0.54, F2 ≈ 0.58, E4 = 0.5).
+
+### Bài học (1 seed)
+- **Bản mềm không tốt hơn bản hard**: F3 gần như bằng E4 (+0.03 epoch cuối, −0.13 best) và kém F1 rõ (−0.40 / −0.37 / −0.35).
+- Cách giải thích khả dĩ: với trọng số mềm, ảnh teacher **sai** vẫn có p_teacher(nhãn) dương nên vẫn nhận w > 0.4, còn ảnh teacher **đúng nhưng không tự tin** chỉ nhận w ~ 0.5;
+  khoảng cách trọng số giữa "teacher đúng" và "teacher sai" nhỏ hơn F1 rất nhiều → hiệu ứng gần như biến mất. Tín hiệu "đúng/sai" rõ ràng (F1) có ích hơn mức tự tin.
+- Không đạt ngưỡng ứng viên (71.73 < 72.20).
+
+## TỔNG KẾT KẾ HOẠCH F (F1/F2/F3, seed 2021, nền E4)
+| Run | Trọng số theo mẫu | KD trung bình | Final | TB 10 cuối | Best |
+|---|---|---:|---:|---:|---:|
+| E4 | không | 0.50 | 71.70 | 71.73 | 72.10 |
+| **F1** | hard đúng 0.6 / sai 0.4 | ~0.54 | **72.13** | **72.14** | **72.32** |
+| F2 | hard đúng 0.7 / sai 0.3 | ~0.58 | 71.90 | 72.04 | 72.23 |
+| F3 | mềm 0.4 + 0.2·p_teacher | ~0.53 | 71.73 | 71.77 | 71.97 |
+
+- **F1 tốt nhất** ở cả 3 chỉ số; best 72.32 cách paper 0.18 (nhưng 300 epoch so với 240 của paper).
+- Không biến thể nào đạt ngưỡng ứng viên ≥ 72.20 ở epoch cuối (F1 sát nhất, 72.13).
+- Thứ tự F1 > F2 > F3 ≈ E4: lợi ích đến từ **tín hiệu đúng/sai rõ ràng với mức lệch vừa phải**; lệch mạnh (0.7/0.3) hoặc làm mềm theo xác suất đều kém hơn.
+- Gợi ý (chờ người dùng): (1) xác nhận F1 bằng seed 2022 cùng E4 seed 2022; (2) thử mức lệch nhỏ hơn 0.55/0.45 để xem đỉnh có nằm dưới 0.6/0.4 không;
+  (3) ý tưởng F4 (chuyển dần sang học nhãn khi student theo kịp teacher) trên nền F1.

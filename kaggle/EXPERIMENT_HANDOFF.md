@@ -551,10 +551,28 @@ Teacher đoán đúng ~69.2% ảnh train (đo lần đầu qua log). Chi tiết:
 - **Chờ quota refresh 2026-11-07 00:00 UTC.**
 
 
-### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-07 00:10 UTC (07:10 giờ Sài Gòn) — F3 đang chạy (tài khoản 2)
+### (Lịch sử) Trạng thái 2026-11-07 00:10 UTC — F3 đã submit; đã được thay bằng mục TRẠNG THÁI HIỆN TẠI bên dưới
 - Lịch scheduler v5 (người dùng chỉ định): cron "1 0,5,10,15,20 * * *" UTC = 07:01, 12:01, 17:01, 22:01, 03:01 giờ Sài Gòn.
 - Quota tài khoản 2 đã refresh (0 s / 108.000 s; refresh tiếp 2026-11-14 00:00 UTC).
 - **F3 ĐÃ SUBMIT (đang chạy):** bản mềm kiểu CCKD w_i = 0.4 + 0.2·p_teacher(nhãn đúng) trên nền F1 —
   https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-f3-soft-cckd, version 1, ~00:03 UTC, notebook `kaggle/experiments/f3_soft_cckd.ipynb`, commit `b7963cf`.
 - So với F1 (72.13 / 72.14 / 72.32), F2 (71.90 / 72.04 / 72.23), E4 (71.70 / 71.73 / 72.10). Dự kiến xong ~04:55 UTC.
 - **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.** Khi xong: tổng kết F1/F2/F3 rồi tắt scheduler.
+
+
+### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-07 06:10 UTC (13:10 giờ Sài Gòn) — KẾ HOẠCH F (F1/F2/F3) HOÀN TẤT, scheduler đã tắt
+**F3 COMPLETE** (bản mềm kiểu CCKD): epoch cuối 71.73, TB 10 cuối 71.77, best 71.97 (ep 299), runtime 19.368 s. p_label TB 0.645 → KD TB ≈ 0.53.
+≈ E4, kém F1 (−0.40). Chi tiết: [experiments/2026-11-05_f2_f3_weight_variants.md](experiments/2026-11-05_f2_f3_weight_variants.md).
+
+**Tổng kết F (seed 2021, nền E4: teacher mdistiller, 300 epoch, 100/188/250):**
+| Run | Trọng số theo mẫu | Final | TB 10 cuối | Best |
+|---|---|---:|---:|---:|
+| E4 | không | 71.70 | 71.73 | 72.10 |
+| **F1** | hard 0.6/0.4 | **72.13** | **72.14** | **72.32** |
+| F2 | hard 0.7/0.3 | 71.90 | 72.04 | 72.23 |
+| F3 | mềm 0.4 + 0.2·p | 71.73 | 71.77 | 71.97 |
+
+- F1 tốt nhất; không biến thể nào đạt ngưỡng ứng viên ≥ 72.20 ở epoch cuối. Tín hiệu đúng/sai rõ với mức lệch vừa phải có ích; lệch mạnh hoặc làm mềm thì không.
+- Scheduler v5 (`trig_01Sh2GBEHeb1grKfyRJfr7nk`) đã tắt (`enabled=false`). Không còn run nào đang chạy.
+- Quota tài khoản 2 tuần này: ~5,4h/30h đã dùng (F3); refresh 2026-11-14 00:00 UTC. Tài khoản 3 vẫn chưa có GPU.
+- Chờ người dùng chọn bước tiếp: F1 + E4 seed 2022; mức lệch 0.55/0.45; hoặc F4 (chuyển dần sang học nhãn).
