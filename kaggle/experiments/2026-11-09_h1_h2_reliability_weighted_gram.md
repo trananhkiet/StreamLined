@@ -61,4 +61,7 @@ Chỉ số theo QUY ƯỚC CHỈ SỐ: so giữa các run bằng top-1 **epoch c
 - Nếu không run nào đạt ngưỡng: ghi kết luận (RW-DIR không thêm giá trị so với E4), dừng, tắt scheduler, chờ người dùng.
 
 ## Trạng thái
-Code + notebook + test CPU xong (2026-11-09). Chờ scheduler: 01:00 giờ Sài Gòn 10/11 submit H1. Chưa có run nào chạy.
+Code + notebook + test CPU xong (2026-11-09).
+**H1 ĐÃ SUBMIT** 2026-11-09 18:05 UTC (01:05 giờ Sài Gòn 10/11), tài khoản 2 `kitit5512trn`, version 1, commit `48b47c1`:
+https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-h1-rw-dir-05 — `kaggle kernels pull -m` xác nhận dataset `fedesoriano/cifar100`, Docker image ghim, T4, GPU + internet bật; QUEUED.
+Quota tài khoản 2 trước H1: 15,26h/30h (còn 14,74h). Dự kiến xong ~4,8h sau khi bắt đầu chạy. Đang chờ kết quả; lần trigger tiếp theo (07:00 giờ Sài Gòn) kiểm tra run này trước, rồi submit H2.

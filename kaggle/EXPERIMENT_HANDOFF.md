@@ -637,4 +637,7 @@ Chi tiết, kiểm tra, rủi ro, luật quyết định: [experiments/2026-11-0
 - Quota tài khoản 2 ~15,2h/30h đã dùng (còn ~14,8h; refresh 2026-11-14 00:00 UTC). Tài khoản 3 vẫn chưa có GPU.
 - Đối chứng: E4 71.70 / 71.73 / 72.10; F1 72.13 / 72.14 / 72.32 (epoch cuối / TB 10 cuối / best). Ngưỡng sàng lọc: epoch cuối ≳ 71.90 (E4 + 0.2).
 - Rủi ro: BC đóng góp rất nhỏ (A3), nên H1/H2 có thể không phân biệt được với E4.
-- **Chưa có run nào chạy; lần trigger tiếp theo submit H1.**
+- **H1 ĐÃ SUBMIT (QUEUED):** https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-h1-rw-dir-05 — version 1, 2026-11-09 18:05 UTC, notebook `kaggle/experiments/h1_rw_dir_05.ipynb` (commit `48b47c1`);
+  dataset, Docker image ghim, T4 đã xác minh. Quota tài khoản 2: 15,26h/30h trước H1. Dự kiến xong ~4,8h sau khi bắt đầu chạy.
+- Ghi chú: người dùng được hỏi có muốn đổi thứ tự (multi-seed E4/F1 trước) hay chỉ chạy H1 không; chưa có trả lời nên tiếp tục đúng kế hoạch ban đầu (H1 → H2).
+- **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.**
