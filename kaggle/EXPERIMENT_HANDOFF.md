@@ -625,3 +625,16 @@ Trùng F1 từng số tới epoch 250 rồi tách đúng tại 251; sau đó kh�
 - **F1 vẫn tốt nhất**; không biến thể nào (F2, F3, G1, F4) vượt F1 hay đạt ngưỡng ≥ 72.20. Nhiễu giữa epoch cuối ~0.2–0.3 → cần ≥ 2 seed để phân biệt. Chi tiết: [experiments/2026-11-07_g1_f4_teacher_fix_and_late_ce.md](experiments/2026-11-07_g1_f4_teacher_fix_and_late_ce.md).
 - Scheduler v5 (`trig_01Sh2GBEHeb1grKfyRJfr7nk`) đã tắt (`enabled=false`). Không còn run nào đang chạy. Quota tài khoản 2 ~15,2h/30h đã dùng (còn ~14,8h; refresh 2026-11-14 00:00 UTC). Tài khoản 3 vẫn chưa có GPU.
 - Chờ người dùng chọn: F1 seed 2022 + E4 seed 2022 (~9,7h) để xác nhận; hoặc hướng khác ngoài loss.
+
+
+### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-09 (kế hoạch H1 / H2 — RW-DIR) — chờ scheduler submit H1
+Người dùng chọn (2026-11-09) kế hoạch **H1 / H2**: nhân ma trận chênh lệch Gram của BC với trọng số độ tin cậy W_ij = sqrt(r_i r_j)/mean (r = 1 nếu teacher đúng, r_wrong nếu sai),
+rồi đưa vào Mahalanobis gốc của SKD. Nền **E4** (không dùng trọng số CE/KD của F1). H1: r_wrong = 0.5; H2: r_wrong = 0.25.
+Chi tiết, kiểm tra, rủi ro, luật quyết định: [experiments/2026-11-09_h1_h2_reliability_weighted_gram.md](experiments/2026-11-09_h1_h2_reliability_weighted_gram.md).
+- Code: `GRAM_WEIGHT_MODE` / `GRAM_R_WRONG` trong `kaggle/streamlined_kd_cifar100.py` (mặc định tắt, bit-exact với E4/F1; `r_wrong=1.0` bit-exact E4). Test CPU + smoke test đạt.
+- Notebook: `kaggle/experiments/h1_rw_dir_05.ipynb` (slug `streamlined-kd-cifar100-h1-rw-dir-05`), `kaggle/experiments/h2_rw_dir_025.ipynb` (slug `streamlined-kd-cifar100-h2-rw-dir-025`). Không build lại.
+- Scheduler v5 (`trig_01Sh2GBEHeb1grKfyRJfr7nk`) bật lại: cron `CRON_TZ=Asia/Saigon 0 1,7,13,19 * * *` (mỗi 6h, lần đầu 01:00 giờ Sài Gòn 10/11). Thứ tự: submit H1 → đọc H1, submit H2 → đọc H2, tổng kết.
+- Quota tài khoản 2 ~15,2h/30h đã dùng (còn ~14,8h; refresh 2026-11-14 00:00 UTC). Tài khoản 3 vẫn chưa có GPU.
+- Đối chứng: E4 71.70 / 71.73 / 72.10; F1 72.13 / 72.14 / 72.32 (epoch cuối / TB 10 cuối / best). Ngưỡng sàng lọc: epoch cuối ≳ 71.90 (E4 + 0.2).
+- Rủi ro: BC đóng góp rất nhỏ (A3), nên H1/H2 có thể không phân biệt được với E4.
+- **Chưa có run nào chạy; lần trigger tiếp theo submit H1.**

@@ -93,6 +93,13 @@ class Config:
     late_kd_start: int = int(os.getenv("LATE_KD_START", "0"))
     late_kd_scale: float = float(os.getenv("LATE_KD_SCALE", "0.5"))
 
+    # Plan item "H" (RW-DIR, user idea 2026-11-09): reliability-weighted Gram difference inside the BC term.
+    #   r_i = 1 if argmax(teacher) == label else gram_r_wrong;  W_ij = sqrt(r_i r_j) / mean_kl sqrt(r_k r_l);  D' = W * (G_S - G_T)
+    # D' then goes through the unchanged SKD Tikhonov + Cholesky + Mahalanobis. "none" (default) keeps every earlier run unchanged;
+    # gram_r_wrong = 1.0 gives W = 1 and is bit-exact with the baseline.
+    gram_weight_mode: str = os.getenv("GRAM_WEIGHT_MODE", "none")
+    gram_r_wrong: float = float(os.getenv("GRAM_R_WRONG", "0.5"))
+
     @property
     def bc_weight(self) -> float:
         return self.kd_weight if self.lambda_bc < 0 else self.lambda_bc
@@ -381,11 +388,24 @@ def kd_loss(student_logits: torch.Tensor, teacher_logits: torch.Tensor, temperat
     return per if per_sample else per.mean()
 
 
-def paper_skd_loss(student_logits: torch.Tensor, teacher_logits: torch.Tensor, tik: float) -> torch.Tensor:
+def gram_reliability_weights(teacher_logits: torch.Tensor, labels: torch.Tensor, r_wrong: float) -> torch.Tensor:
+    """RW-DIR: [B, B] symmetric weights W_ij = sqrt(r_i r_j) / mean(sqrt(r_k r_l)), r_i = 1 (teacher correct) or r_wrong."""
+    with torch.no_grad():
+        correct = teacher_logits.detach().argmax(dim=1).eq(labels)
+        r = torch.where(correct, torch.ones_like(teacher_logits[:, 0]), torch.full_like(teacher_logits[:, 0], r_wrong))
+        weights = torch.sqrt(r[:, None] * r[None, :])
+        return weights / weights.mean().clamp_min(1e-8)
+
+
+def paper_skd_loss(
+    student_logits: torch.Tensor, teacher_logits: torch.Tensor, tik: float, gram_weights: torch.Tensor | None = None
+) -> torch.Tensor:
     num_classes = student_logits.size(1)
     student_logits = F.normalize(student_logits, p=2, dim=1)
     teacher_logits = F.normalize(teacher_logits, p=2, dim=1)
     difference = (student_logits @ student_logits.T - teacher_logits @ teacher_logits.T) / num_classes
+    if gram_weights is not None:
+        difference = difference * gram_weights
     covariance = torch.cov(difference.T) + tik * torch.eye(difference.size(1), device=difference.device)
     covariance_inv = torch.cholesky_inverse(torch.linalg.cholesky(covariance))
     distances = torch.einsum("bi,ij,bj->b", difference, covariance_inv, difference)
@@ -492,10 +512,21 @@ def raw_loss_terms(
         kd_term = (kd_loss(student_logits, teacher_logits, CFG.temperature, per_sample=True) * confidence_mask).mean()
     else:
         kd_term = (kd_loss(student_logits, teacher_logits, CFG.temperature) * confidence_mask).mean()
+    gram_weights = None
+    if CFG.gram_weight_mode == "teacher_correct":
+        gram_weights = gram_reliability_weights(teacher_logits, labels, CFG.gram_r_wrong)
+        if track_stats:
+            GRAM_STATS["wrong"] += (teacher_logits.detach().argmax(dim=1).ne(labels)).sum().item()
+            GRAM_STATS["total"] += float(labels.numel())
+            GRAM_STATS["w_max"] += gram_weights.max().item()
+            GRAM_STATS["w_min"] += gram_weights.min().item()
+            GRAM_STATS["batches"] += 1.0
+    elif CFG.gram_weight_mode != "none":
+        raise ValueError(f"Unknown GRAM_WEIGHT_MODE: {CFG.gram_weight_mode}")
     terms = {
         "ce": F.cross_entropy(student_logits, labels),
         "kd": kd_term,
-        "bc": (paper_skd_loss(student_logits, teacher_logits, CFG.tik) * class_mask).mean(),
+        "bc": (paper_skd_loss(student_logits, teacher_logits, CFG.tik, gram_weights) * class_mask).mean(),
     }
     if CFG.sample_weight_mode != "none":
         terms["kd_mask_fraction"] = confidence_mask.float().mean()  # no grad: skipped by the gradient probe
@@ -516,6 +547,7 @@ def teacher_correct_weights(teacher_logits: torch.Tensor, labels: torch.Tensor) 
 
 
 SAMPLE_WEIGHT_STATS = {"correct": 0.0, "total": 0.0, "p_label_sum": 0.0}
+GRAM_STATS = {"wrong": 0.0, "total": 0.0, "w_max": 0.0, "w_min": 0.0, "batches": 0.0}
 CORRECTION_STATS = {"swapped": 0.0, "total": 0.0}
 
 
@@ -539,6 +571,13 @@ def swap_wrong_teacher_logits(teacher_logits: torch.Tensor, labels: torch.Tensor
 def pop_sample_weight_stats() -> dict[str, float]:
     """Share (%) of training samples the teacher classifies correctly (= samples that get KD weight sw_trust)."""
     extra: dict[str, float] = {}
+    if CFG.gram_weight_mode != "none":
+        batches = max(GRAM_STATS["batches"], 1.0)
+        extra["gram_teacher_wrong_pct"] = 100.0 * GRAM_STATS["wrong"] / max(GRAM_STATS["total"], 1.0)
+        extra["gram_w_max_mean"] = GRAM_STATS["w_max"] / batches
+        extra["gram_w_min_mean"] = GRAM_STATS["w_min"] / batches
+        for key in GRAM_STATS:
+            GRAM_STATS[key] = 0.0
     if CFG.teacher_correction != "none":
         extra["teacher_swapped_pct"] = 100.0 * CORRECTION_STATS["swapped"] / max(CORRECTION_STATS["total"], 1.0)
         for key in CORRECTION_STATS:
@@ -961,6 +1000,8 @@ def run_experiment() -> dict[str, object]:
             + (f" | teacher_train_top1={row['teacher_train_top1_sw']:.2f}" if "teacher_train_top1_sw" in row else "")
             + (f" | p_label={row['teacher_p_label_mean']:.4f}" if "teacher_p_label_mean" in row else "")
             + (f" | teacher_swapped={row['teacher_swapped_pct']:.2f}" if "teacher_swapped_pct" in row else "")
+            + (f" | gram_wrong={row['gram_teacher_wrong_pct']:.2f}% W[{row['gram_w_min_mean']:.3f},{row['gram_w_max_mean']:.3f}]" if "gram_teacher_wrong_pct" in row else "")
+            + (f" | gradnorm ce/kd/bc={row['gradnorm_ce']:.3f}/{row['gradnorm_kd']:.3f}/{row['gradnorm_bc']:.4f}" if "gram_teacher_wrong_pct" in row and "gradnorm_bc" in row else "")
         )
         if test_metrics["top1"] > best_top1:
             best_top1 = test_metrics["top1"]
