@@ -640,4 +640,6 @@ Chi tiết, kiểm tra, rủi ro, luật quyết định: [experiments/2026-11-0
 - **H1 ĐÃ SUBMIT (QUEUED):** https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-h1-rw-dir-05 — version 1, 2026-11-09 18:05 UTC, notebook `kaggle/experiments/h1_rw_dir_05.ipynb` (commit `48b47c1`);
   dataset, Docker image ghim, T4 đã xác minh. Quota tài khoản 2: 15,26h/30h trước H1. Dự kiến xong ~4,8h sau khi bắt đầu chạy.
 - Ghi chú: người dùng được hỏi có muốn đổi thứ tự (multi-seed E4/F1 trước) hay chỉ chạy H1 không; chưa có trả lời nên tiếp tục đúng kế hoạch ban đầu (H1 → H2).
+- 2026-11-10 00:10 UTC (07:10 giờ Sài Gòn): H1 vẫn **QUEUED** sau ~6h kể từ lúc submit; quota GPU tài khoản 2 không đổi (54.948s dùng, 0s reserved) nghĩa là chưa có phiên GPU nào bắt đầu.
+  Không tạo run trùng, không submit H2. Nếu sang lần trigger sau (13:00 giờ Sài Gòn) vẫn QUEUED, đây là hàng đợi Kaggle bất thường: ghi blocker và nêu cho người dùng quyết định (không tự submit lại).
 - **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.**
