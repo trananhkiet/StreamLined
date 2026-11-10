@@ -60,8 +60,32 @@ Chỉ số theo QUY ƯỚC CHỈ SỐ: so giữa các run bằng top-1 **epoch c
   Quota sau H1+H2 còn ~5,2h (< 5,5h cần để submit) → seed 2022 chỉ chạy được sau khi quota refresh 2026-11-14 00:00 UTC; ghi blocker "chờ quota" nếu đến lúc đó chưa đủ.
 - Nếu không run nào đạt ngưỡng: ghi kết luận (RW-DIR không thêm giá trị so với E4), dừng, tắt scheduler, chờ người dùng.
 
+## Kết quả H1 (r_wrong = 0.5) — đã xác minh từ log Kaggle (tài khoản 2, version 2), 2026-11-10
+Version 1 của notebook kẹt QUEUED ~6h không bắt đầu; với sự cho phép của người dùng đã push lại thành version 2 (chạy ngay). Config xác nhận trong `summary.json`: `seed=2021`, `epochs=300`,
+`teacher_source=mdistiller`, `lr_milestones=[100,188,250]`, CE/KD 0.5/0.5, `kd_mask_mode=scalar`, `lambda_bc=-1`, `loss_mode=skd`, `optim_mode=sgd`, T=4.
+Log: `device: cuda`, dataset OK, **teacher 72.41% / 92.50%** (giống E4). Quota tăng 19.385 s (~5,38h) cho một phiên — không có phiên chạy trùng.
+
+| | E4 (đối chứng) | **H1** | H1 − E4 | F1 |
+|---|---:|---:|---:|---:|
+| **Test top-1 epoch 300 (chỉ số quyết định)** | 71.70 | **71.97** | **+0.27** | 72.13 |
+| Trung bình 10 epoch cuối (291–300) | 71.73 | **71.95** | +0.22 | 72.14 |
+| Best test top-1 (so với paper) | 72.10 | **72.20** (ep 272) | +0.10 | 72.32 |
+| Best test top-5 | 93.02 | 93.06 | +0.04 | 92.83 |
+| Best test loss | 1.0421 | 1.0374 | −0.005 | 1.0498 |
+| Train top-1 cuối | 67.05 | 67.34 | +0.29 | 67.81 |
+| Runtime | 16.959 s | 19.334 s (~5,37h) | | 17.332 s |
+
+Đường cong H1: ep100 42.43 → ep101 63.39 → ep188 59.05 → ep189 70.01 → ep250 70.54 → ep251 71.79 → ep260 72.07 → ep300 71.97.
+Số đo RW-DIR: teacher sai trên ảnh train đã augment **30.8–31.0%** mỗi epoch (khớp kỳ vọng ~31%); W ∈ [0.605, 1.21] (trung bình theo batch).
+**gradnorm ce/kd/bc** (lớp cuối, chưa nhân hệ số): ~0.97 / 0.52 / **0.0053** ở cuối huấn luyện (ep1: 0.805/0.397/0.0064; ep100: 0.851/0.471/0.0036) — gradient BC chỉ ~1% gradient KD.
+
+### Đánh giá H1
+- **Đạt ngưỡng sàng lọc** (epoch cuối 71.97 ≥ 71.90 = E4 + 0.2): +0.27 epoch cuối, +0.22 TB 10 cuối, +0.10 best. Thấp hơn F1 (72.13) 0.16.
+- **Cần thận trọng khi diễn giải:** gradient của BC chỉ ~1% gradient KD (đo trực tiếp), nên một thay đổi bên trong BC khó là nguyên nhân thực của +0.27; nhiều khả năng một phần đáng kể là nhiễu quỹ đạo (đổi bất kỳ thứ gì cũng làm lệch đường huấn luyện).
+  Nhiễu epoch-to-epoch ~0.2–0.3 và mới 1 seed → mức này không phải bằng chứng ý nghĩa thống kê. Cần H2 và seed 2022 (kèm E4 seed 2022) để phân biệt.
+
 ## Trạng thái
-Code + notebook + test CPU xong (2026-11-09).
-**H1 ĐÃ SUBMIT** 2026-11-09 18:05 UTC (01:05 giờ Sài Gòn 10/11), tài khoản 2 `kitit5512trn`, version 1, commit `48b47c1`:
-https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-h1-rw-dir-05 — `kaggle kernels pull -m` xác nhận dataset `fedesoriano/cifar100`, Docker image ghim, T4, GPU + internet bật; QUEUED.
-Quota tài khoản 2 trước H1: 15,26h/30h (còn 14,74h). Dự kiến xong ~4,8h sau khi bắt đầu chạy. Đang chờ kết quả; lần trigger tiếp theo (07:00 giờ Sài Gòn) kiểm tra run này trước, rồi submit H2.
+Code + notebook + test CPU xong (2026-11-09). **H1 COMPLETE** (xem trên).
+**H2 ĐÃ SUBMIT** 2026-11-10 ~07:40 UTC, tài khoản 2 `kitit5512trn`, version 1, commit `48b47c1`:
+https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-h2-rw-dir-025 — `kaggle kernels pull -m` xác nhận dataset `fedesoriano/cifar100`, Docker image ghim, T4, GPU + internet bật; RUNNING.
+Quota tài khoản 2 trước H2: 20,65h/30h (còn 9,35h). Dự kiến xong sau ~5,4h (~13:00 UTC). Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.

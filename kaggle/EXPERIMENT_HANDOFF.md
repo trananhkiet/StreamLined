@@ -644,4 +644,10 @@ Chi tiết, kiểm tra, rủi ro, luật quyết định: [experiments/2026-11-0
   Không tạo run trùng, không submit H2. Nếu sang lần trigger sau (13:00 giờ Sài Gòn) vẫn QUEUED, đây là hàng đợi Kaggle bất thường: ghi blocker và nêu cho người dùng quyết định (không tự submit lại).
 - 2026-11-10 01:28 UTC (người dùng cho phép hủy rồi push lại nếu vẫn kẹt): `kaggle kernels delete` lỗi phía Kaggle; không lấy được session ID để hủy riêng. Đã push lại cùng notebook → **version 2**, chuyển **RUNNING** ngay (quota GPU bắt đầu tính).
   Metadata xác minh lại (dataset, Docker ghim, T4). Lưu ý: version 1 có thể vẫn nằm hàng đợi; nếu thấy hai phiên chạy song song (quota tăng nhanh gấp đôi) thì hủy phiên v1 và ghi lại. H1 chạy từ ~01:28 UTC, dự kiến xong ~06:15 UTC.
-- **Đang chờ kết quả (H1 version 2 đang chạy); lần trigger tiếp theo kiểm tra run này trước.**
+- **H1 COMPLETE** (version 2, nền E4 + RW-DIR r_wrong 0.5): epoch cuối **71.97**, TB 10 cuối **71.95**, best **72.20** (ep 272), top-5 93.06, train top-1 67.34, runtime 19.334s (~5,37h).
+  So E4 (71.70 / 71.73 / 72.10): **+0.27 / +0.22 / +0.10** → đạt ngưỡng sàng lọc ≥ 71.90 nhưng thấp hơn F1 (72.13). gradnorm_bc chỉ ~0.005 so với KD ~0.52 (BC ~1% gradient) nên nhiều khả năng một phần là nhiễu quỹ đạo.
+  Teacher sai ở ~31% ảnh train, W ∈ [0.605, 1.21]. Chi tiết: [experiments/2026-11-09_h1_h2_reliability_weighted_gram.md](experiments/2026-11-09_h1_h2_reliability_weighted_gram.md).
+- **H2 ĐÃ SUBMIT (RUNNING):** https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-h2-rw-dir-025 — version 1, 2026-11-10 ~07:40 UTC, notebook `kaggle/experiments/h2_rw_dir_025.ipynb` (commit `48b47c1`);
+  dataset, Docker image ghim, T4 đã xác minh. Quota tài khoản 2: 20,65h/30h trước H2 (còn 9,35h; sau H2 còn ~4h < 5,5h nên seed 2022 phải chờ refresh 2026-11-14 00:00 UTC). Dự kiến xong ~13:00 UTC.
+- Scheduler đang chạy mỗi giờ (cron `32 * * * *` UTC) theo yêu cầu người dùng.
+- **Đang chờ kết quả (H2); lần trigger tiếp theo kiểm tra run này trước.**
