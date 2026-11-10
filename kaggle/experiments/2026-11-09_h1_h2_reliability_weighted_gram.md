@@ -86,6 +86,6 @@ Số đo RW-DIR: teacher sai trên ảnh train đã augment **30.8–31.0%** m�
 
 ## Trạng thái
 Code + notebook + test CPU xong (2026-11-09). **H1 COMPLETE** (xem trên).
-**H2 ĐÃ SUBMIT** 2026-11-10 ~07:40 UTC, tài khoản 2 `kitit5512trn`, version 1, commit `48b47c1`:
-https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-h2-rw-dir-025 — `kaggle kernels pull -m` xác nhận dataset `fedesoriano/cifar100`, Docker image ghim, T4, GPU + internet bật; RUNNING.
-Quota tài khoản 2 trước H2: 20,65h/30h (còn 9,35h). Dự kiến xong sau ~5,4h (~13:00 UTC). Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.
+**H2 ĐÃ HỦY theo yêu cầu người dùng** (2026-11-10 ~08:45 UTC, đã chạy ~1h): người dùng thấy ngay cả H1 có tác động thấp (gradient BC ~1% gradient KD) nên dùng quota cho việc khác. Hủy bằng `kaggle kernels delete`
+(kernel `streamlined-kd-cifar100-h2-rw-dir-025`, version 1, chưa có kết quả); quota GPU ngừng tăng sau đó (tổng đã dùng 22,27h/30h, còn 7,73h). **H2 chưa có kết quả; không còn run nào đang chạy.**
+Scheduler v6 đã tắt (`enabled=false`). Quy tắc "H1 ≥ 71.90 ⇒ seed 2022 + E4 seed 2022" vẫn còn nhưng đang chờ người dùng quyết định ưu tiên (xem HANDOFF).

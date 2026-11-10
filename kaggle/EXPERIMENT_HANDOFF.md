@@ -650,4 +650,6 @@ Chi tiết, kiểm tra, rủi ro, luật quyết định: [experiments/2026-11-0
 - **H2 ĐÃ SUBMIT (RUNNING):** https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-h2-rw-dir-025 — version 1, 2026-11-10 ~07:40 UTC, notebook `kaggle/experiments/h2_rw_dir_025.ipynb` (commit `48b47c1`);
   dataset, Docker image ghim, T4 đã xác minh. Quota tài khoản 2: 20,65h/30h trước H2 (còn 9,35h; sau H2 còn ~4h < 5,5h nên seed 2022 phải chờ refresh 2026-11-14 00:00 UTC). Dự kiến xong ~13:00 UTC.
 - Scheduler đang chạy mỗi giờ (cron `32 * * * *` UTC) theo yêu cầu người dùng.
-- **Đang chờ kết quả (H2); lần trigger tiếp theo kiểm tra run này trước.**
+- **H2 ĐÃ HỦY (2026-11-10 ~08:45 UTC, theo yêu cầu người dùng):** xóa kernel bằng `kaggle kernels delete`; quota ngừng tăng (tổng 22,27h/30h đã dùng, còn **7,73h**; refresh 2026-11-14 00:00 UTC). Không còn run nào chạy.
+- Scheduler v6 đã **tắt** (`enabled=false`) để không tự submit lại H2. Chờ người dùng chọn: dùng ~7,7h còn lại cho **một** run (đủ một run, không đủ hai): F1 seed 2022 (kiểm chứng run tốt nhất) hoặc E4 seed 2022; run còn lại sau 14/11.
+- Ghi chú: F1 (72.13) vẫn là run tốt nhất; H1 (71.97) đứng thứ hai trong các run seed 2021; cả hai chưa được xác nhận bằng seed khác.
