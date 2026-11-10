@@ -642,4 +642,6 @@ Chi tiết, kiểm tra, rủi ro, luật quyết định: [experiments/2026-11-0
 - Ghi chú: người dùng được hỏi có muốn đổi thứ tự (multi-seed E4/F1 trước) hay chỉ chạy H1 không; chưa có trả lời nên tiếp tục đúng kế hoạch ban đầu (H1 → H2).
 - 2026-11-10 00:10 UTC (07:10 giờ Sài Gòn): H1 vẫn **QUEUED** sau ~6h kể từ lúc submit; quota GPU tài khoản 2 không đổi (54.948s dùng, 0s reserved) nghĩa là chưa có phiên GPU nào bắt đầu.
   Không tạo run trùng, không submit H2. Nếu sang lần trigger sau (13:00 giờ Sài Gòn) vẫn QUEUED, đây là hàng đợi Kaggle bất thường: ghi blocker và nêu cho người dùng quyết định (không tự submit lại).
-- **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.**
+- 2026-11-10 01:28 UTC (người dùng cho phép hủy rồi push lại nếu vẫn kẹt): `kaggle kernels delete` lỗi phía Kaggle; không lấy được session ID để hủy riêng. Đã push lại cùng notebook → **version 2**, chuyển **RUNNING** ngay (quota GPU bắt đầu tính).
+  Metadata xác minh lại (dataset, Docker ghim, T4). Lưu ý: version 1 có thể vẫn nằm hàng đợi; nếu thấy hai phiên chạy song song (quota tăng nhanh gấp đôi) thì hủy phiên v1 và ghi lại. H1 chạy từ ~01:28 UTC, dự kiến xong ~06:15 UTC.
+- **Đang chờ kết quả (H1 version 2 đang chạy); lần trigger tiếp theo kiểm tra run này trước.**
