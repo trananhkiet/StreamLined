@@ -98,6 +98,10 @@ class Config:
     # D' then goes through the unchanged SKD Tikhonov + Cholesky + Mahalanobis. "none" (default) keeps every earlier run unchanged;
     # gram_r_wrong = 1.0 gives W = 1 and is bit-exact with the baseline.
     gram_weight_mode: str = os.getenv("GRAM_WEIGHT_MODE", "none")
+    # Plan item "I1": divisor of the Gram difference inside the BC term. 0 (default) = num_classes, i.e. the authors' code
+    # (G_S - G_T) / C, which makes Cov(D) << the Tikhonov term (0.1) so the Mahalanobis distance degenerates to ||d|| / sqrt(0.1).
+    # Set GRAM_DIV=1 to drop the 1/C scaling (Cov(D) then comparable to the Tikhonov term); retune LAMBDA_BC with it.
+    gram_div: float = float(os.getenv("GRAM_DIV", "0"))
     gram_r_wrong: float = float(os.getenv("GRAM_R_WRONG", "0.5"))
 
     @property
@@ -403,7 +407,8 @@ def paper_skd_loss(
     num_classes = student_logits.size(1)
     student_logits = F.normalize(student_logits, p=2, dim=1)
     teacher_logits = F.normalize(teacher_logits, p=2, dim=1)
-    difference = (student_logits @ student_logits.T - teacher_logits @ teacher_logits.T) / num_classes
+    gram_divisor = num_classes if CFG.gram_div <= 0 else CFG.gram_div
+    difference = (student_logits @ student_logits.T - teacher_logits @ teacher_logits.T) / gram_divisor
     if gram_weights is not None:
         difference = difference * gram_weights
     covariance = torch.cov(difference.T) + tik * torch.eye(difference.size(1), device=difference.device)
@@ -1001,7 +1006,7 @@ def run_experiment() -> dict[str, object]:
             + (f" | p_label={row['teacher_p_label_mean']:.4f}" if "teacher_p_label_mean" in row else "")
             + (f" | teacher_swapped={row['teacher_swapped_pct']:.2f}" if "teacher_swapped_pct" in row else "")
             + (f" | gram_wrong={row['gram_teacher_wrong_pct']:.2f}% W[{row['gram_w_min_mean']:.3f},{row['gram_w_max_mean']:.3f}]" if "gram_teacher_wrong_pct" in row else "")
-            + (f" | gradnorm ce/kd/bc={row['gradnorm_ce']:.3f}/{row['gradnorm_kd']:.3f}/{row['gradnorm_bc']:.4f}" if "gram_teacher_wrong_pct" in row and "gradnorm_bc" in row else "")
+            + (f" | gradnorm ce/kd/bc={row['gradnorm_ce']:.3f}/{row['gradnorm_kd']:.3f}/{row['gradnorm_bc']:.4f}" if "gradnorm_bc" in row else "")
         )
         if test_metrics["top1"] > best_top1:
             best_top1 = test_metrics["top1"]

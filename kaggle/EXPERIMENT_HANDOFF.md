@@ -674,3 +674,11 @@ notebook `kaggle/experiments/f1_teacher_correct_weight_seed2022.ipynb` (= notebo
 - Giới hạn: chưa có E4 seed 2022 → chưa so cặp F1 vs E4 ở seed 2022. Quota tài khoản 2: 26,91h/30h đã dùng (còn ~3,1h) → **E4 seed 2022 chờ quota refresh 2026-11-14 00:00 UTC**.
 - Scheduler v7 đã tắt (`enabled=false`). Không còn run nào đang chạy. Chờ người dùng quyết định bước tiếp theo.
 
+
+
+### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-11 (kế hoạch I1: bỏ `/C` trong Gram của BC) — **ĐÃ CHUYỂN SANG TÀI KHOẢN KAGGLE 1**
+Người dùng chuyển sang **tài khoản 1** (`trananhkiet`, CLI: `export KAGGLE_API_TOKEN="$KAGGLE_KEY"`; quota 0/30h đã dùng, refresh 2026-11-14 00:00 UTC). Tài khoản 2 (`kitit5512trn`) chỉ còn ~3,1h: không dùng cho kế hoạch này.
+Kế hoạch **I1** (người dùng muốn kết luận trong ~8h): sóng 1 = run thăm dò 10 epoch để chọn λ_BC; sóng 2 = hai run đầy đủ F1 + GRAM_DIV=1 + LAMBDA_BC=λ* (seed 2022 và 2021, song song).
+Chi tiết, quy tắc chọn λ*, quy tắc kết luận: [experiments/2026-11-11_i1_gram_div.md](experiments/2026-11-11_i1_gram_div.md). Code: `GRAM_DIV` trong `kaggle/streamlined_kd_cifar100.py` (mặc định tắt, bit-exact);
+`kaggle/make_variant_notebook.py` sinh notebook. Quy ước chỉ số: best top-1. Đối chứng: F1 seed 2021 = 72.32 best; F1 seed 2022 = 72.45 best.
+- **Chưa có run nào chạy.**
