@@ -686,4 +686,8 @@ Chi tiết, quy tắc chọn λ*, quy tắc kết luận: [experiments/2026-11-1
 - **Probe COMPLETE:** ĝ_KD 0,500, ĝ_BC 0,0989 (epoch 3–10) → λ* = 2,73 → kẹp **1,0**. Bỏ `/C` làm gradient BC tăng ~20 lần (0,005 → ~0,10) nhưng vẫn nhỏ hơn KD ~5 lần.
 - **Sóng 2 ĐÃ SUBMIT (RUNNING)** ~17:50 UTC 11/11: https://www.kaggle.com/code/trananhkiet/streamlined-kd-cifar100-i1-lam1p0-seed2022 — version 1, F1 + GRAM_DIV=1 + LAMBDA_BC=1.0, seed 2022, notebook `kaggle/experiments/i1_lam1p0_seed2022.ipynb` (commit `ef0576c`);
   dataset, Docker ghim, T4 đã xác minh. Quota tài khoản 1: 0,19h/30h trước run. Dự kiến xong ~5,4h sau (~23:15 UTC).
-- Scheduler v8: cron `37 * * * *` UTC (mỗi giờ). **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run chính trước.**
+- **I1 (run chính, λ_BC=1.0, seed 2022) COMPLETE (2026-11-11 22:37 UTC, ~4,81h):** best **72.06** (ep 287), epoch cuối **71.77**, TB 10 cuối **71.88**, top-5 92.97, train top-1 cuối **64.36** (F1 s2022: 67.52). Teacher 72.41/92.50.
+  So F1 seed 2022 (72.45 / 72.34 / 72.27): **Δ best = −0.39 ≤ −0.20 → KẾT LUẬN: I1 có hại, dừng hướng này.** Gradient BC (khi bỏ `/C`) tăng 0.10 → 0.22, ~0.4× KD ở cuối; BC mạnh làm student khớp train kém hơn (−3.2 train top-1).
+  Giới hạn: một seed, một λ (1.0, bị kẹp từ λ*=2.73); chưa loại trừ λ nhỏ hơn nhưng không có lý do mạnh để thử thêm. Chi tiết: [experiments/2026-11-11_i1_gram_div.md](experiments/2026-11-11_i1_gram_div.md).
+- Scheduler v8 đã **tắt** (`enabled=false`). Không còn run nào đang chạy. Quota tài khoản 1: ~5,0h/30h đã dùng (còn ~25h; refresh 2026-11-14 00:00 UTC). Chờ người dùng quyết định bước tiếp theo.
+- Bảng best top-1 (seed 2021 trừ khi ghi): F1 72.32 (s2022: 72.45) · F4 72.32 · F2 72.23 · H1 72.20 · E4 72.10 · G1 72.09 · I1 72.06 (s2022) · F3 71.97 · paper SKD 72.50.
