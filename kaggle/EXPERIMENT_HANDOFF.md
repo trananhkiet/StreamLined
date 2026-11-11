@@ -661,3 +661,12 @@ Chi tiết, kiểm tra, rủi ro, luật quyết định: [experiments/2026-11-0
 - **H2 ĐÃ HỦY (2026-11-10 ~08:45 UTC, theo yêu cầu người dùng):** xóa kernel bằng `kaggle kernels delete`; quota ngừng tăng (tổng 22,27h/30h đã dùng, còn **7,73h**; refresh 2026-11-14 00:00 UTC). Không còn run nào chạy.
 - Scheduler v6 đã **tắt** (`enabled=false`) để không tự submit lại H2. Chờ người dùng chọn: dùng ~7,7h còn lại cho **một** run (đủ một run, không đủ hai): F1 seed 2022 (kiểm chứng run tốt nhất) hoặc E4 seed 2022; run còn lại sau 14/11.
 - Ghi chú: F1 (72.13) vẫn là run tốt nhất; H1 (71.97) đứng thứ hai trong các run seed 2021; cả hai chưa được xác nhận bằng seed khác.
+
+
+### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-11 — F1 SEED 2022 ĐÃ SUBMIT (QUEUED)
+Người dùng yêu cầu chạy thêm 1 seed cho F1 (cấu hình tương tự). **F1 seed 2022** đã submit: https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-f1-seed2022 — version 1,
+notebook `kaggle/experiments/f1_teacher_correct_weight_seed2022.ipynb` (= notebook F1, chỉ đổi `SEED` mặc định 2022). Dataset, Docker ghim, T4 đã xác minh. Chi tiết: [experiments/2026-11-11_f1_seed2022.md](experiments/2026-11-11_f1_seed2022.md).
+- Quy ước chỉ số hiện hành: **best top-1** (xem mục "QUY ƯỚC CHỈ SỐ — CẬP NHẬT 2026-11-11"). Đối chứng seed 2021: F1 best 72.32 (final 72.13); E4 best 72.10 (final 71.70).
+- Quota tài khoản 2: 22,27h/30h trước run (còn 7,73h; refresh 2026-11-14 00:00 UTC). Sau run còn ~2,3h → E4 seed 2022 (để so cặp) phải chờ refresh.
+- H2 đã hủy, H1 xong (best 72.20). Không còn kế hoạch H.
+- **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.**
