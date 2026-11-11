@@ -681,4 +681,6 @@ Người dùng chuyển sang **tài khoản 1** (`trananhkiet`, CLI: `export KAG
 Kế hoạch **I1** (người dùng muốn kết luận trong ~8h): sóng 1 = run thăm dò 10 epoch để chọn λ_BC; sóng 2 = hai run đầy đủ F1 + GRAM_DIV=1 + LAMBDA_BC=λ* (seed 2022 và 2021, song song).
 Chi tiết, quy tắc chọn λ*, quy tắc kết luận: [experiments/2026-11-11_i1_gram_div.md](experiments/2026-11-11_i1_gram_div.md). Code: `GRAM_DIV` trong `kaggle/streamlined_kd_cifar100.py` (mặc định tắt, bit-exact);
 `kaggle/make_variant_notebook.py` sinh notebook. Quy ước chỉ số: best top-1. Đối chứng: F1 seed 2021 = 72.32 best; F1 seed 2022 = 72.45 best.
-- **Chưa có run nào chạy.**
+- **Sóng 1 (probe 10 epoch) ĐÃ SUBMIT** 2026-11-11 ~17:09 UTC (tài khoản 1, `streamlined-kd-cifar100-i1-probe-10ep`, version 1, RUNNING; docker/dataset/T4 đã xác minh).
+- **Sóng 2 (người dùng chọn: chỉ seed 2022 trước):** F1 + GRAM_DIV=1 + LAMBDA_BC=λ*, 300 epoch, seed 2022; submit khi probe đọc xong. Seed 2021 hoãn. Quy tắc kết luận: Δ = best(I1 s2022) − 72.45 (F1 s2022); ≥ +0.20 hứa hẹn, ≤ −0.20 có hại, còn lại không phân biệt được.
+- Scheduler v8: cron `37 * * * *` UTC (mỗi giờ; hệ thống không cho dày hơn). **Đang chờ kết quả; lần trigger tiếp theo kiểm tra probe trước.**
