@@ -669,4 +669,8 @@ notebook `kaggle/experiments/f1_teacher_correct_weight_seed2022.ipynb` (= notebo
 - Quy ước chỉ số hiện hành: **best top-1** (xem mục "QUY ƯỚC CHỈ SỐ — CẬP NHẬT 2026-11-11"). Đối chứng seed 2021: F1 best 72.32 (final 72.13); E4 best 72.10 (final 71.70).
 - Quota tài khoản 2: 22,27h/30h trước run (còn 7,73h; refresh 2026-11-14 00:00 UTC). Sau run còn ~2,3h → E4 seed 2022 (để so cặp) phải chờ refresh.
 - H2 đã hủy, H1 xong (best 72.20). Không còn kế hoạch H.
-- **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này trước.**
+- **F1 seed 2022 COMPLETE (2026-11-11):** best **72.45** (ep 291), epoch cuối **72.34**, TB 10 cuối **72.27**, top-5 92.98, train top-1 67.52, runtime 16.670 s (~4,63h). Teacher 72.41/92.50.
+  So F1 seed 2021 (72.32 / 72.13 / 72.14) và E4 seed 2021 (72.10 / 71.70 / 71.73): **F1 lặp lại và cao hơn ở seed 2022**; trung bình best hai seed = 72.39; **kém paper SKD (72.50) chỉ 0.05**. Chi tiết: [experiments/2026-11-11_f1_seed2022.md](experiments/2026-11-11_f1_seed2022.md).
+- Giới hạn: chưa có E4 seed 2022 → chưa so cặp F1 vs E4 ở seed 2022. Quota tài khoản 2: 26,91h/30h đã dùng (còn ~3,1h) → **E4 seed 2022 chờ quota refresh 2026-11-14 00:00 UTC**.
+- Scheduler v7 đã tắt (`enabled=false`). Không còn run nào đang chạy. Chờ người dùng quyết định bước tiếp theo.
+
