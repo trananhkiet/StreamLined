@@ -683,4 +683,7 @@ Chi tiết, quy tắc chọn λ*, quy tắc kết luận: [experiments/2026-11-1
 `kaggle/make_variant_notebook.py` sinh notebook. Quy ước chỉ số: best top-1. Đối chứng: F1 seed 2021 = 72.32 best; F1 seed 2022 = 72.45 best.
 - **Sóng 1 (probe 10 epoch) ĐÃ SUBMIT** 2026-11-11 ~17:09 UTC (tài khoản 1, `streamlined-kd-cifar100-i1-probe-10ep`, version 1, RUNNING; docker/dataset/T4 đã xác minh).
 - **Sóng 2 (người dùng chọn: chỉ seed 2022 trước):** F1 + GRAM_DIV=1 + LAMBDA_BC=λ*, 300 epoch, seed 2022; submit khi probe đọc xong. Seed 2021 hoãn. Quy tắc kết luận: Δ = best(I1 s2022) − 72.45 (F1 s2022); ≥ +0.20 hứa hẹn, ≤ −0.20 có hại, còn lại không phân biệt được.
-- Scheduler v8: cron `37 * * * *` UTC (mỗi giờ; hệ thống không cho dày hơn). **Đang chờ kết quả; lần trigger tiếp theo kiểm tra probe trước.**
+- **Probe COMPLETE:** ĝ_KD 0,500, ĝ_BC 0,0989 (epoch 3–10) → λ* = 2,73 → kẹp **1,0**. Bỏ `/C` làm gradient BC tăng ~20 lần (0,005 → ~0,10) nhưng vẫn nhỏ hơn KD ~5 lần.
+- **Sóng 2 ĐÃ SUBMIT (RUNNING)** ~17:50 UTC 11/11: https://www.kaggle.com/code/trananhkiet/streamlined-kd-cifar100-i1-lam1p0-seed2022 — version 1, F1 + GRAM_DIV=1 + LAMBDA_BC=1.0, seed 2022, notebook `kaggle/experiments/i1_lam1p0_seed2022.ipynb` (commit `ef0576c`);
+  dataset, Docker ghim, T4 đã xác minh. Quota tài khoản 1: 0,19h/30h trước run. Dự kiến xong ~5,4h sau (~23:15 UTC).
+- Scheduler v8: cron `37 * * * *` UTC (mỗi giờ). **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run chính trước.**
