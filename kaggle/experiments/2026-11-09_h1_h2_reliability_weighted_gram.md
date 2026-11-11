@@ -84,6 +84,10 @@ Số đo RW-DIR: teacher sai trên ảnh train đã augment **30.8–31.0%** m�
 - **Cần thận trọng khi diễn giải:** gradient của BC chỉ ~1% gradient KD (đo trực tiếp), nên một thay đổi bên trong BC khó là nguyên nhân thực của +0.27; nhiều khả năng một phần đáng kể là nhiễu quỹ đạo (đổi bất kỳ thứ gì cũng làm lệch đường huấn luyện).
   Nhiễu epoch-to-epoch ~0.2–0.3 và mới 1 seed → mức này không phải bằng chứng ý nghĩa thống kê. Cần H2 và seed 2022 (kèm E4 seed 2022) để phân biệt.
 
+## Cập nhật quy ước chỉ số (2026-11-11)
+Người dùng chọn so sánh bằng **best top-1** từ nay. Theo best: H1 = 72.20 vs E4 72.10 → **+0.10**, dưới ngưỡng sàng lọc 72.30 (E4 + 0.2) → **H1 không đạt ngưỡng theo quy ước mới**
+(theo epoch cuối cũ thì +0.27, đạt). F1 và F4 cùng 72.32 là cao nhất; H1 72.20 xếp sau F1, F4, F2 (72.23).
+
 ## Trạng thái
 Code + notebook + test CPU xong (2026-11-09). **H1 COMPLETE** (xem trên).
 **H2 ĐÃ HỦY theo yêu cầu người dùng** (2026-11-10 ~08:45 UTC, đã chạy ~1h): người dùng thấy ngay cả H1 có tác động thấp (gradient BC ~1% gradient KD) nên dùng quota cho việc khác. Hủy bằng `kaggle kernels delete`

@@ -466,7 +466,15 @@ So với E1: +0.95 (epoch cuối), +1.05 (TB 10 cuối). Cách paper SKD (72.50)
 - Việc tiếp theo (chờ người dùng quyết định): ví dụ tách đóng góp của E4 (teacher mdistiller + 240 epoch lịch E1), thêm seed cho E4, hoặc quay lại D (DOT) trên nền mới.
 
 
-### QUY ƯỚC CHỈ SỐ (người dùng thống nhất 2026-11-05) — áp dụng cho mọi bảng từ nay
+### QUY ƯỚC CHỈ SỐ — CẬP NHẬT 2026-11-11 (người dùng): từ nay so sánh giữa các run bằng **best top-1**
+**Thay đổi so với quy ước 2026-11-05 bên dưới:** mọi so sánh và luật quyết định (ngưỡng sàng lọc +0.2 / +0.5 …) dùng **best top-1** (max trên các epoch). Vẫn ghi thêm epoch cuối và TB 10 epoch cuối
+trong bảng để tham khảo, nhưng không dùng chúng để ra quyết định. Lưu ý cố hữu của best top-1 (đã nêu với người dùng): CIFAR-100 không có tập validation, best là max của ~300 lần đo trên chính tập test
+→ lạc quan ~0.2–0.4 điểm, và chênh lệch giữa các run nhỏ hơn dải này không đáng tin; đây là lựa chọn của người dùng.
+Bảng best top-1 (seed 2021, teacher mdistiller, 300 epoch): E4 72.10 · F1 **72.32** · F2 72.23 · F3 71.97 · G1 72.09 · F4 **72.32** · H1 72.20 · paper SKD 72.50.
+Hệ quả: theo best, ngưỡng sàng lọc của H = E4 + 0.2 = 72.30 → H1 (72.20, +0.10) **không đạt** (theo epoch cuối trước đây thì đạt: 71.97 ≥ 71.90).
+
+(Quy ước gốc 2026-11-05, giữ để tham chiếu lịch sử:)
+#### QUY ƯỚC CHỈ SỐ (người dùng thống nhất 2026-11-05) — áp dụng cho mọi bảng từ nay
 Mọi bảng kết quả ghi **cả hai**: best top-1 và top-1 epoch cuối (kèm trung bình 10 epoch cuối).
 - **So với paper → dùng best top-1.** Code gốc repo SKD (`CIFAR-100/Utils/train.py`, hàm `test()`) theo dõi `best_acc` trên tập test và lưu checkpoint ở epoch tốt nhất;
   CRD/RepDistiller cũng in "best accuracy". Nên số paper (SKD 72.50) nhiều khả năng là best top-1.
