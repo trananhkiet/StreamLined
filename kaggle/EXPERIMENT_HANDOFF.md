@@ -695,6 +695,6 @@ Chi tiết, quy tắc chọn λ*, quy tắc kết luận: [experiments/2026-11-1
 
 ### HƯỚNG NGHIÊN CỨU ĐANG MỞ — cập nhật 2026-11-12 (người dùng đề xuất; chưa có run nào chạy)
 Tìm **cơ chế** đằng sau F1 (best 72.32 seed 2021 / 72.45 seed 2022) rồi đề xuất loss có tính mới (Error-Aware Decoupled KD: α_i·TCKD + β_i·NCKD theo loại lỗi của teacher).
-Ba giả thuyết: A teacher reliability · B tăng KD chung (0.538/0.462) · C cân bằng CE/KD theo độ khó. Thí nghiệm theo ưu tiên: **E4 seed 2022** → J1 (hằng 0.538/0.462) → J2 (xáo trộn trọng số đúng/sai) → J3 (chỉ weight KD, CE cố định).
+Ba giả thuyết: A teacher reliability · B tăng KD chung (0.538/0.462) · C cân bằng CE/KD theo độ khó. Thí nghiệm theo ưu tiên: J1 (hằng 0.538/0.462) → J2 (xáo trộn trọng số đúng/sai) → J3 (chỉ weight KD, CE cố định). **E4 seed 2022 đã bị bỏ khỏi kế hoạch (người dùng, 2026-11-12)**; đối chứng là F1 cùng seed.
 Chi tiết, sơ đồ, ghi chú rủi ro (tính mới so với TGeo-KD/DKD/RLD, nhiễu seed, chi phí quota): **[experiments/2026-11-12_research_direction_f1_mechanism.md](experiments/2026-11-12_research_direction_f1_mechanism.md)**.
 Nền tảng liên quan: báo cáo deep research `reports/Loss KD CIFAR100 ResNet20.md` (+ `research_notes/Loss KD CIFAR100 ResNet20/`). Quota tài khoản 1: ~5,0h/30h đã dùng (refresh 2026-11-14 00:00 UTC). Scheduler đang tắt.
