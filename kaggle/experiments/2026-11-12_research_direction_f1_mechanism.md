@@ -87,5 +87,10 @@ Chi tiết: [2026-11-12_e4s2022_j2s2021.md](2026-11-12_e4s2022_j2s2021.md), [202
 - Hệ quả: **B bị bác bỏ; D (điều chuẩn ngẫu nhiên) không được ủng hộ; A (đúng/sai của teacher) được ủng hộ nhẹ** (còn chưa tách khỏi C — độ khó). Kết luận trung gian trước đó (D, một seed) đã được thay thế.
 - Hướng Error-Aware DKD (mục 4) vì vậy **vẫn còn lý do** (tiền đề A chưa bị bác), nhưng độ lớn hiệu ứng nhỏ (0.2–0.5) và gần nhiễu; cần J4 (tách A khỏi C), thêm seed, và đọc TGeo-KD/DKD/RLD trước khi khẳng định tính mới.
 
+## Kết quả D2 (hướng 2: error-aware decoupled KD; 2026-11-12, một seed 2022)
+Chi tiết: [2026-11-12_d2_nckd_on_wrong.md](2026-11-12_d2_nckd_on_wrong.md). Bỏ TCKD trên mẫu teacher sai (chỉ giữ NCKD): **best 72.05 / cuối 71.70 / TB10 71.73** so với F1 72.45 / 72.34 / 72.27 (**Δ best −0.40**) và E4 72.11 / 71.84 / 71.92 (≈ E4).
+→ Hướng 2 **không được ủng hộ**: bỏ TCKD trên mẫu sai xóa lợi ích của F1; tri thức lớp đích của teacher trên mẫu sai có thể hữu ích (giả thuyết, chưa kiểm chứng). Phần KL bị bỏ chỉ ~4% giá trị loss của mẫu sai. Một seed; nhiễu ~0.4.
+Hệ quả: tiền đề "teacher sai ⇒ tri thức lớp đích gây hại" của Error-Aware DKD cần được xem lại; F1a/F1b vẫn là bước định vị nguồn lợi ích rẻ nhất.
+
 ## Trạng thái
-Hướng nghiên cứu đã được ghi lại (2026-11-12). J1/J2 (seed 2022), E4 seed 2022 và J2 seed 2021 **đã chạy xong** (kết quả ở trên; E4 seed 2022 được người dùng đưa lại vào kế hoạch). J3 chưa chạy. Người dùng đang đánh giá tổng thể; bước tiếp theo chờ người dùng quyết định.
+Hướng nghiên cứu ghi lại 2026-11-12. Đã chạy: J1/J2 (seed 2022), E4 seed 2022, J2 seed 2021, **D2 (seed 2022)**; kết quả ở trên. J3, F1a/F1b, J4 chưa chạy. Quota tài khoản 1 gần hết đến 2026-11-14 00:00 UTC; bước tiếp theo chờ người dùng quyết định.
