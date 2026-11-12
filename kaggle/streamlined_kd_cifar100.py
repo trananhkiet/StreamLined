@@ -82,6 +82,11 @@ class Config:
     # "none" (default) keeps every previous experiment unchanged; with sw_trust = sw_distrust = 0.5 it equals run B/E4.
     # "teacher_prob" (soft, CCKD-style): w_i = sw_distrust + (sw_trust - sw_distrust) * p_teacher(label_i), softmax at T=1.
     sample_weight_mode: str = os.getenv("SAMPLE_WEIGHT_MODE", "none")
+    # Plan item "D2" (error-aware decoupled KD, user direction 2026-11-12): only with SAMPLE_WEIGHT_MODE=teacher_correct.
+    # "full" (default) keeps the full KL on every sample (= F1). "nckd_only": on samples where the teacher is WRONG, drop the target-class
+    # part (TCKD) of the KL and keep only the non-target part: KL = TCKD + (1 - p_T[y]) * NCKD  =>  KD_i = (1 - p_T[y]) * NCKD_i  (T^2 scaled).
+    # On samples where the teacher is right the full KL is kept. CE/KD sample weights (0.6/0.4) are unchanged.
+    wrong_kd_mode: str = os.getenv("WRONG_KD_MODE", "full")
     # Plan item "J2" (shuffled-reliability control): "teacher_correct_shuffled" computes the F1 weights (sw_trust/sw_distrust by teacher
     # correctness) and then randomly permutes them WITHIN the batch (weights only; labels/logits untouched; the same permuted weight is used
     # for CE and KD), so the number of trust/distrust weights is unchanged but they are decoupled from the sample's teacher correctness.
@@ -405,6 +410,25 @@ def gram_reliability_weights(teacher_logits: torch.Tensor, labels: torch.Tensor,
         return weights / weights.mean().clamp_min(1e-8)
 
 
+WRONG_KD_STATS = {"removed": 0.0, "full_wrong": 0.0, "n_wrong": 0.0, "n_total": 0.0}
+
+
+def nckd_per_sample(student_logits: torch.Tensor, teacher_logits: torch.Tensor, labels: torch.Tensor, temperature: float) -> torch.Tensor:
+    """(1 - p_T[y]) * KL(p_hat_T || p_hat_S) * T^2 where p_hat is the distribution over the non-target classes (target removed, renormalized).
+    Together with the binary target term TCKD it reconstructs the full KL: KL = TCKD + (1 - p_T[y]) * NCKD."""
+    if CFG.logit_std:
+        student_logits = standardize_logits(student_logits)
+        teacher_logits = standardize_logits(teacher_logits)
+    target_mask = F.one_hot(labels, student_logits.size(1)).bool()
+    teacher_prob_full = F.softmax(teacher_logits / temperature, dim=1)
+    nontarget_weight = 1.0 - teacher_prob_full.gather(1, labels.view(-1, 1)).squeeze(1)
+    big_neg = -1e9
+    student_log = F.log_softmax((student_logits / temperature).masked_fill(target_mask, big_neg), dim=1)
+    teacher_prob = F.softmax((teacher_logits / temperature).masked_fill(target_mask, big_neg), dim=1)
+    nckd = F.kl_div(student_log, teacher_prob, reduction="none").sum(1)
+    return nontarget_weight * nckd * temperature**2
+
+
 def paper_skd_loss(
     student_logits: torch.Tensor, teacher_logits: torch.Tensor, tik: float, gram_weights: torch.Tensor | None = None
 ) -> torch.Tensor:
@@ -604,6 +628,11 @@ def pop_sample_weight_stats() -> dict[str, float]:
         extra["gram_w_min_mean"] = GRAM_STATS["w_min"] / batches
         for key in GRAM_STATS:
             GRAM_STATS[key] = 0.0
+    if CFG.wrong_kd_mode == "nckd_only":
+        extra["wrong_kd_removed_share_pct"] = 100.0 * WRONG_KD_STATS["removed"] / max(WRONG_KD_STATS["full_wrong"], 1e-12)
+        extra["wrong_pct"] = 100.0 * WRONG_KD_STATS["n_wrong"] / max(WRONG_KD_STATS["n_total"], 1.0)
+        for key in WRONG_KD_STATS:
+            WRONG_KD_STATS[key] = 0.0
     if CFG.teacher_correction != "none":
         extra["teacher_swapped_pct"] = 100.0 * CORRECTION_STATS["swapped"] / max(CORRECTION_STATS["total"], 1.0)
         for key in CORRECTION_STATS:
@@ -637,6 +666,17 @@ def distillation_losses(student_logits: torch.Tensor, teacher_logits: torch.Tens
             bc_scale = CFG.late_kd_scale
         ce_per_sample = F.cross_entropy(student_logits, labels, reduction="none")
         kl_per_sample = kd_loss(student_logits, teacher_logits, CFG.temperature, per_sample=True)
+        if CFG.wrong_kd_mode == "nckd_only":
+            wrong = teacher_logits.detach().argmax(dim=1).ne(labels)
+            nckd = nckd_per_sample(student_logits, teacher_logits.detach(), labels, CFG.temperature)
+            new_kl = torch.where(wrong, nckd, kl_per_sample)
+            WRONG_KD_STATS["removed"] += (kl_per_sample - new_kl).detach()[wrong].sum().item()
+            WRONG_KD_STATS["full_wrong"] += kl_per_sample.detach()[wrong].sum().item()
+            WRONG_KD_STATS["n_wrong"] += wrong.sum().item()
+            WRONG_KD_STATS["n_total"] += float(wrong.numel())
+            kl_per_sample = new_kl
+        elif CFG.wrong_kd_mode != "full":
+            raise ValueError(f"Unknown WRONG_KD_MODE: {CFG.wrong_kd_mode}")
         return {
             "ce": ((1.0 - weights) * ce_per_sample).mean(),
             "kd": (weights * kl_per_sample).mean() * raw["kd_mask_fraction"],
@@ -1029,6 +1069,7 @@ def run_experiment() -> dict[str, object]:
             + (f" | p_label={row['teacher_p_label_mean']:.4f}" if "teacher_p_label_mean" in row else "")
             + (f" | teacher_swapped={row['teacher_swapped_pct']:.2f}" if "teacher_swapped_pct" in row else "")
             + (f" | sw_same={row['sw_shuffle_same_pct']:.2f}%" if "sw_shuffle_same_pct" in row else "")
+            + (f" | wrong={row['wrong_pct']:.2f}% tckd_removed={row['wrong_kd_removed_share_pct']:.1f}%" if "wrong_kd_removed_share_pct" in row else "")
             + (f" | gram_wrong={row['gram_teacher_wrong_pct']:.2f}% W[{row['gram_w_min_mean']:.3f},{row['gram_w_max_mean']:.3f}]" if "gram_teacher_wrong_pct" in row else "")
             + (f" | gradnorm ce/kd/bc={row['gradnorm_ce']:.3f}/{row['gradnorm_kd']:.3f}/{row['gradnorm_bc']:.4f}" if "gradnorm_bc" in row else "")
         )

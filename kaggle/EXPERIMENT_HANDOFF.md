@@ -731,3 +731,9 @@ Notebook: `kaggle/experiments/e4_mdteacher_300ep_seed2022.ipynb`, `kaggle/experi
   **Bảng hai seed (best / cuối / TB10):** E4 72.10/71.70/71.73 · 72.11/71.84/71.92 (TB 72.11/71.77/71.83); F1 72.32/72.13/72.14 · 72.45/72.34/72.27 (TB 72.39/72.24/72.21); J2 71.99/71.68/71.66 · 72.39/72.02/72.14 (TB 72.19/71.85/71.90); J1 (s2022) 71.51/71.24/71.24.
   **Nhận xét sơ bộ:** F1 − E4 = +0.28 best / +0.47 cuối (6/6 phép dương); J2 − F1 = −0.20 / −0.39 (6/6 âm); J2 ≈ E4 (+0.09); J1 − E4 = −0.60 (s2022). → B bị bác; **D không được ủng hộ** (kết luận một seed trước đó bị thay thế); **A được ủng hộ nhẹ** (chưa tách khỏi C = độ khó). Nhiễu giữa seed cùng cấu hình tới ~0.4 (J2) nên hiệu ứng 0.2–0.5 chỉ mức vừa trên nhiễu. Chi tiết: [experiments/2026-11-12_e4s2022_j2s2021.md](experiments/2026-11-12_e4s2022_j2s2021.md).
 - Scheduler v10 đã **tắt** (`enabled=false`). **Không còn run nào đang chạy; DỪNG để người dùng đánh giá tổng thể.** Quota tài khoản 1: ~24,5h/30h đã dùng (ước tính; còn ~5,5h; refresh 2026-11-14 00:00 UTC).
+
+
+### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-12 (D2: bỏ TCKD trên mẫu teacher sai; một run seed 2022; tài khoản Kaggle 1)
+Người dùng chọn hướng 2 (error-aware decoupled KD) và muốn kiểm tra kết quả sau ~6h. Plan, công thức, test, quy tắc kết luận, giới hạn: [experiments/2026-11-12_d2_nckd_on_wrong.md](experiments/2026-11-12_d2_nckd_on_wrong.md).
+Notebook `kaggle/experiments/d2_nckd_on_wrong_seed2022.ipynb` (F1 + `WRONG_KD_MODE=nckd_only`). Đối chứng seed 2022: F1 72.45 best (cuối 72.34, TB10 72.27), E4 72.11. Quota tài khoản 1 trước run: 24.52h/30h (còn 5.48h; refresh 2026-11-14 00:00 UTC).
+- **Chưa submit.**
