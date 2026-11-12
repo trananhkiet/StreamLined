@@ -82,6 +82,10 @@ class Config:
     # "none" (default) keeps every previous experiment unchanged; with sw_trust = sw_distrust = 0.5 it equals run B/E4.
     # "teacher_prob" (soft, CCKD-style): w_i = sw_distrust + (sw_trust - sw_distrust) * p_teacher(label_i), softmax at T=1.
     sample_weight_mode: str = os.getenv("SAMPLE_WEIGHT_MODE", "none")
+    # Plan item "J2" (shuffled-reliability control): "teacher_correct_shuffled" computes the F1 weights (sw_trust/sw_distrust by teacher
+    # correctness) and then randomly permutes them WITHIN the batch (weights only; labels/logits untouched; the same permuted weight is used
+    # for CE and KD), so the number of trust/distrust weights is unchanged but they are decoupled from the sample's teacher correctness.
+    # Plan item "J1" (constant-weight control) needs no new mode: SAMPLE_WEIGHT_MODE=teacher_correct with SW_TRUST = SW_DISTRUST = 0.5384.
     sw_trust: float = float(os.getenv("SW_TRUST", "0.6"))
     sw_distrust: float = float(os.getenv("SW_DISTRUST", "0.4"))
     # Plan item "G1": "swap" fixes the teacher's soft label on training samples it misclassifies by swapping the logit of its
@@ -538,6 +542,18 @@ def raw_loss_terms(
     return terms
 
 
+SHUFFLE_GENERATOR: dict[str, torch.Generator] = {}
+
+
+def shuffle_within_batch(weights: torch.Tensor) -> torch.Tensor:
+    """J2: random permutation of the per-sample weights inside the batch, from a dedicated generator (does not touch the global RNG,
+    so data order / augmentation stay identical to the F1 run with the same seed)."""
+    if "g" not in SHUFFLE_GENERATOR:
+        SHUFFLE_GENERATOR["g"] = torch.Generator().manual_seed(CFG.seed + 12345)
+    perm = torch.randperm(weights.numel(), generator=SHUFFLE_GENERATOR["g"]).to(weights.device)
+    return weights[perm]
+
+
 def teacher_correct_weights(teacher_logits: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
     teacher_logits = teacher_logits.detach()
     correct = teacher_logits.argmax(dim=1).eq(labels)
@@ -548,10 +564,15 @@ def teacher_correct_weights(teacher_logits: torch.Tensor, labels: torch.Tensor) 
         SAMPLE_WEIGHT_STATS["p_label_sum"] += p_label.sum().item()
         return (CFG.sw_distrust + (CFG.sw_trust - CFG.sw_distrust) * p_label).detach()
     trust = torch.full_like(teacher_logits[:, 0], CFG.sw_trust)
-    return torch.where(correct, trust, torch.full_like(trust, CFG.sw_distrust)).detach()
+    weights = torch.where(correct, trust, torch.full_like(trust, CFG.sw_distrust)).detach()
+    if CFG.sample_weight_mode == "teacher_correct_shuffled":
+        shuffled = shuffle_within_batch(weights)
+        SAMPLE_WEIGHT_STATS["shuffle_same"] += shuffled.eq(weights).sum().item()
+        weights = shuffled
+    return weights
 
 
-SAMPLE_WEIGHT_STATS = {"correct": 0.0, "total": 0.0, "p_label_sum": 0.0}
+SAMPLE_WEIGHT_STATS = {"correct": 0.0, "total": 0.0, "p_label_sum": 0.0, "shuffle_same": 0.0}
 GRAM_STATS = {"wrong": 0.0, "total": 0.0, "w_max": 0.0, "w_min": 0.0, "batches": 0.0}
 CORRECTION_STATS = {"swapped": 0.0, "total": 0.0}
 
@@ -593,6 +614,8 @@ def pop_sample_weight_stats() -> dict[str, float]:
     stats = {"teacher_train_top1_sw": 100.0 * SAMPLE_WEIGHT_STATS["correct"] / total}
     if CFG.sample_weight_mode == "teacher_prob":
         stats["teacher_p_label_mean"] = SAMPLE_WEIGHT_STATS["p_label_sum"] / total
+    if CFG.sample_weight_mode == "teacher_correct_shuffled":
+        stats["sw_shuffle_same_pct"] = 100.0 * SAMPLE_WEIGHT_STATS["shuffle_same"] / total
     stats.update(extra)
     for key in SAMPLE_WEIGHT_STATS:
         SAMPLE_WEIGHT_STATS[key] = 0.0
@@ -604,7 +627,7 @@ def distillation_losses(student_logits: torch.Tensor, teacher_logits: torch.Tens
     if CFG.loss_mode == "dkd":
         warmup = min(CURRENT_EPOCH["value"] / max(CFG.dkd_warmup, 1), 1.0)
         return {"ce": CFG.dkd_ce_weight * raw["ce"], "kd": warmup * raw["kd"], "bc": 0.0 * raw["bc"]}
-    if CFG.sample_weight_mode in ("teacher_correct", "teacher_prob"):
+    if CFG.sample_weight_mode in ("teacher_correct", "teacher_prob", "teacher_correct_shuffled"):
         if CFG.kd_mask_mode != "scalar":
             raise ValueError("SAMPLE_WEIGHT_MODE is defined on top of KD_MASK_MODE=scalar")
         weights = teacher_correct_weights(teacher_logits, labels)
@@ -1005,6 +1028,7 @@ def run_experiment() -> dict[str, object]:
             + (f" | teacher_train_top1={row['teacher_train_top1_sw']:.2f}" if "teacher_train_top1_sw" in row else "")
             + (f" | p_label={row['teacher_p_label_mean']:.4f}" if "teacher_p_label_mean" in row else "")
             + (f" | teacher_swapped={row['teacher_swapped_pct']:.2f}" if "teacher_swapped_pct" in row else "")
+            + (f" | sw_same={row['sw_shuffle_same_pct']:.2f}%" if "sw_shuffle_same_pct" in row else "")
             + (f" | gram_wrong={row['gram_teacher_wrong_pct']:.2f}% W[{row['gram_w_min_mean']:.3f},{row['gram_w_max_mean']:.3f}]" if "gram_teacher_wrong_pct" in row else "")
             + (f" | gradnorm ce/kd/bc={row['gradnorm_ce']:.3f}/{row['gradnorm_kd']:.3f}/{row['gradnorm_bc']:.4f}" if "gradnorm_bc" in row else "")
         )
