@@ -708,4 +708,13 @@ Notebook: `kaggle/experiments/j1_const0p5384_seed2022.ipynb`, `kaggle/experiment
   - J1: https://www.kaggle.com/code/trananhkiet/streamlined-kd-cifar100-j1-const0p5384-seed2022
   - J2: https://www.kaggle.com/code/trananhkiet/streamlined-kd-cifar100-j2-shuffled-seed2022
   Quota tài khoản 1 trước run: 5.02h/30h (còn 24.98h). Dự kiến xong ~8:30–9:00 UTC (4.6–5.4h). Quy tắc kết luận sơ bộ (best top-1, ngưỡng 0.20 so với F1 seed 2022 = 72.45): xem file plan.
-- Scheduler v9: cron `37 * * * *` UTC (mỗi giờ). **Đang chờ kết quả; lần trigger tiếp theo kiểm tra hai run trước.**
+- **J1 và J2 COMPLETE (2026-11-12 ~09:38 UTC, tài khoản 1, seed 2022):**
+  | | best | epoch cuối | TB 10 cuối |
+  |---|---:|---:|---:|
+  | F1 (đối chứng) | 72.45 | 72.34 | 72.27 |
+  | **J1** (hằng 0.5384) | **71.51** | 71.24 | 71.24 |
+  | **J2** (xáo trộn đúng/sai) | **72.39** | 72.02 | 72.14 |
+  Δ best so với F1: J1 **−0.94**, J2 **−0.06**. `sw_same` J2 = 58.0% (xác nhận xáo trộn). Runtime J1 4,80h, J2 4,95h; teacher 72.41 ở cả hai.
+- **KẾT LUẬN SƠ BỘ (một seed):** giả thuyết B (tăng KD chung) **bị bác bỏ**; giả thuyết A (teacher reliability) **chưa có bằng chứng** (F1 ≈ J2); J2 hơn J1 +0.88 dù cùng trọng số trung bình → **giả thuyết D: lợi ích của F1 đến từ sự không đồng nhất ngẫu nhiên của trọng số CE/KD giữa các mẫu** (điều chuẩn), không phải từ đúng/sai của teacher. Hướng Error-Aware DKD cần cân nhắc lại.
+  Giới hạn: một seed; best top-1 lạc quan; J1 thấp hơn E4 (seed khác) 0.59 và E4 seed 2022 đã bỏ nên không tách được nhiễu. Chi tiết, gợi ý bước sau (J2/J1 seed 2021, J5 trọng số iid ngẫu nhiên, quét phương sai): [experiments/2026-11-12_j1_j2_controls.md](experiments/2026-11-12_j1_j2_controls.md).
+- Scheduler v9 đã **tắt** (`enabled=false`). Không còn run nào đang chạy. Quota tài khoản 1: ~14,8h/30h đã dùng (ước tính; còn ~15h; refresh 2026-11-14 00:00 UTC). Chờ người dùng quyết định bước tiếp theo.
