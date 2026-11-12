@@ -723,4 +723,8 @@ Notebook: `kaggle/experiments/j1_const0p5384_seed2022.ipynb`, `kaggle/experiment
 ### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-12 (E4 seed 2022 + J2 seed 2021; sau đó DỪNG để đánh giá tổng thể) — tài khoản Kaggle 1
 Người dùng yêu cầu chạy **E4 seed 2022** và **J2 seed 2021** (song song), rồi **dừng** để đánh giá tổng thể (đảo lại quyết định bỏ E4 seed 2022). Plan, bảng tổng hợp cần lập, giới hạn: [experiments/2026-11-12_e4s2022_j2s2021.md](experiments/2026-11-12_e4s2022_j2s2021.md).
 Notebook: `kaggle/experiments/e4_mdteacher_300ep_seed2022.ipynb`, `kaggle/experiments/j2_shuffled_seed2021.ipynb`. Quy ước: best top-1. Quota tài khoản 1 trước run: 14.79h/30h (còn 15.21h).
-- **Chưa submit.**
+- **E4 seed 2022 và J2 seed 2021 ĐÃ SUBMIT (cả hai RUNNING)** 2026-11-12 ~10:09 UTC, tài khoản 1, version 1, commit `c73443b`; dataset, Docker ghim, T4 đã xác minh:
+  - E4 seed 2022: https://www.kaggle.com/code/trananhkiet/streamlined-kd-cifar100-e4-seed2022
+  - J2 seed 2021: https://www.kaggle.com/code/trananhkiet/streamlined-kd-cifar100-j2-shuffled-seed2021
+  Dự kiến xong ~14:45–15:30 UTC (4.6–5.4h). Sau khi cả hai xong: ghi kết quả + bảng tổng hợp hai seed, **KHÔNG chạy thêm**, chờ người dùng đánh giá tổng thể.
+- Scheduler v10: cron `37 1-23/2 * * *` UTC (mỗi 2 giờ, giờ lẻ). **Đang chờ kết quả; lần trigger tiếp theo kiểm tra hai run trước.**
