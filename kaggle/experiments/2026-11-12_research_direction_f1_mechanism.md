@@ -79,11 +79,13 @@ Nếu xác nhận được, thiết kế $(\alpha_i, \beta_i)$ dựa trên **lo�
 8. **Rủi ro về tính mới:** nhánh nghiên cứu trước (báo cáo `reports/Loss KD CIFAR100 ResNet20.md`) ghi nhận F1 là bản ngưỡng cứng của TGeo-KD (ICLR 2024; chưa kiểm chứng trực tiếp vì không truy cập được arXiv), và RLD (ICCV 2025) bàn về việc không sửa logit teacher sai. Cần đọc trực tiếp các paper này trước khi khẳng định tính mới.
 9. **Cơ chế gốc BC:** ở H1/I1, mọi can thiệp bên trong BC đều không giúp (BC chỉ ~1% gradient khi còn `/C`; bật mạnh thì hại). Vì vậy khi thiết kế loss mới, `λ·BC` nên được xem như phần giữ nguyên, không phải nơi tìm cải tiến.
 
-## Kết quả sơ bộ J1/J2 (2026-11-12, một seed 2022)
-Chi tiết: [2026-11-12_j1_j2_controls.md](2026-11-12_j1_j2_controls.md). Tóm tắt (best top-1; F1 = 72.45): **J1 (hằng 0.5384) = 71.51** (−0.94); **J2 (xáo trộn đúng/sai) = 72.39** (−0.06).
-- Giả thuyết **B** (chỉ tăng KD chung) **bị bác bỏ**; giả thuyết **A** (reliability) **chưa có bằng chứng** (J2 ≈ F1).
-- **Giả thuyết mới D:** lợi ích của F1 đến từ **sự không đồng nhất ngẫu nhiên của trọng số CE/KD giữa các mẫu** (điều chuẩn kiểu nhiễu), không phải từ teacher đúng/sai: J2 hơn J1 +0.88 best dù cùng trọng số trung bình.
-- Hệ quả: tiền đề của **Error-Aware DKD** (mục 4) cần được cân nhắc lại; cơ chế đáng nghiên cứu có thể là điều chuẩn bằng trọng số ngẫu nhiên. Mọi kết luận còn sơ bộ (một seed).
+## Kết quả sơ bộ (cập nhật 2026-11-12 sau E4 seed 2022 + J2 seed 2021; hai seed)
+Chi tiết: [2026-11-12_e4s2022_j2s2021.md](2026-11-12_e4s2022_j2s2021.md), [2026-11-12_j1_j2_controls.md](2026-11-12_j1_j2_controls.md). Trung bình hai seed (best / epoch cuối / TB 10 cuối): **E4 72.11 / 71.77 / 71.83 · F1 72.39 / 72.24 / 72.21 · J2 72.19 / 71.85 / 71.90**; J1 (hằng 0.5384, một seed 2022) 71.51 / 71.24 / 71.24.
+- **F1 > E4** ở cả hai seed, cả ba chỉ số (+0.28 best, +0.47 cuối, +0.38 TB 10 cuối).
+- **J2 < F1** ở cả hai seed, cả ba chỉ số (−0.20 best, −0.39 cuối, −0.31 TB 10 cuối); **J2 ≈ E4** (+0.09 best).
+- **J1 < E4** cùng seed 2022 (−0.60): tăng KD chung đồng đều **không giúp, còn hại** (một seed).
+- Hệ quả: **B bị bác bỏ; D (điều chuẩn ngẫu nhiên) không được ủng hộ; A (đúng/sai của teacher) được ủng hộ nhẹ** (còn chưa tách khỏi C — độ khó). Kết luận trung gian trước đó (D, một seed) đã được thay thế.
+- Hướng Error-Aware DKD (mục 4) vì vậy **vẫn còn lý do** (tiền đề A chưa bị bác), nhưng độ lớn hiệu ứng nhỏ (0.2–0.5) và gần nhiễu; cần J4 (tách A khỏi C), thêm seed, và đọc TGeo-KD/DKD/RLD trước khi khẳng định tính mới.
 
 ## Trạng thái
-Hướng nghiên cứu đã được ghi lại (2026-11-12). **J1 và J2 đã chạy xong (seed 2022)**; kết quả ở trên. E4 seed 2022 đã bị bỏ khỏi kế hoạch theo yêu cầu người dùng. J3 chưa chạy. Việc tiếp theo chờ người dùng quyết định.
+Hướng nghiên cứu đã được ghi lại (2026-11-12). J1/J2 (seed 2022), E4 seed 2022 và J2 seed 2021 **đã chạy xong** (kết quả ở trên; E4 seed 2022 được người dùng đưa lại vào kế hoạch). J3 chưa chạy. Người dùng đang đánh giá tổng thể; bước tiếp theo chờ người dùng quyết định.

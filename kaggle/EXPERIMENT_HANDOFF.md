@@ -727,4 +727,7 @@ Notebook: `kaggle/experiments/e4_mdteacher_300ep_seed2022.ipynb`, `kaggle/experi
   - E4 seed 2022: https://www.kaggle.com/code/trananhkiet/streamlined-kd-cifar100-e4-seed2022
   - J2 seed 2021: https://www.kaggle.com/code/trananhkiet/streamlined-kd-cifar100-j2-shuffled-seed2021
   Dự kiến xong ~14:45–15:30 UTC (4.6–5.4h). Sau khi cả hai xong: ghi kết quả + bảng tổng hợp hai seed, **KHÔNG chạy thêm**, chờ người dùng đánh giá tổng thể.
-- Scheduler v10: cron `37 1-23/2 * * *` UTC (mỗi 2 giờ, giờ lẻ). **Đang chờ kết quả; lần trigger tiếp theo kiểm tra hai run trước.**
+- **E4 seed 2022 và J2 seed 2021 COMPLETE (2026-11-12 ~15:38 UTC):** E4 s2022 = **72.11** best / 71.84 cuối / 71.92 TB10 (train 67.12); J2 s2021 = **71.99** / 71.68 / 71.66 (train 66.50). Teacher 72.41; `sw_same` J2 58.0%.
+  **Bảng hai seed (best / cuối / TB10):** E4 72.10/71.70/71.73 · 72.11/71.84/71.92 (TB 72.11/71.77/71.83); F1 72.32/72.13/72.14 · 72.45/72.34/72.27 (TB 72.39/72.24/72.21); J2 71.99/71.68/71.66 · 72.39/72.02/72.14 (TB 72.19/71.85/71.90); J1 (s2022) 71.51/71.24/71.24.
+  **Nhận xét sơ bộ:** F1 − E4 = +0.28 best / +0.47 cuối (6/6 phép dương); J2 − F1 = −0.20 / −0.39 (6/6 âm); J2 ≈ E4 (+0.09); J1 − E4 = −0.60 (s2022). → B bị bác; **D không được ủng hộ** (kết luận một seed trước đó bị thay thế); **A được ủng hộ nhẹ** (chưa tách khỏi C = độ khó). Nhiễu giữa seed cùng cấu hình tới ~0.4 (J2) nên hiệu ứng 0.2–0.5 chỉ mức vừa trên nhiễu. Chi tiết: [experiments/2026-11-12_e4s2022_j2s2021.md](experiments/2026-11-12_e4s2022_j2s2021.md).
+- Scheduler v10 đã **tắt** (`enabled=false`). **Không còn run nào đang chạy; DỪNG để người dùng đánh giá tổng thể.** Quota tài khoản 1: ~24,5h/30h đã dùng (ước tính; còn ~5,5h; refresh 2026-11-14 00:00 UTC).
