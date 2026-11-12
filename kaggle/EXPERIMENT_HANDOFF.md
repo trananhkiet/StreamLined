@@ -718,3 +718,9 @@ Notebook: `kaggle/experiments/j1_const0p5384_seed2022.ipynb`, `kaggle/experiment
 - **KẾT LUẬN SƠ BỘ (một seed):** giả thuyết B (tăng KD chung) **bị bác bỏ**; giả thuyết A (teacher reliability) **chưa có bằng chứng** (F1 ≈ J2); J2 hơn J1 +0.88 dù cùng trọng số trung bình → **giả thuyết D: lợi ích của F1 đến từ sự không đồng nhất ngẫu nhiên của trọng số CE/KD giữa các mẫu** (điều chuẩn), không phải từ đúng/sai của teacher. Hướng Error-Aware DKD cần cân nhắc lại.
   Giới hạn: một seed; best top-1 lạc quan; J1 thấp hơn E4 (seed khác) 0.59 và E4 seed 2022 đã bỏ nên không tách được nhiễu. Chi tiết, gợi ý bước sau (J2/J1 seed 2021, J5 trọng số iid ngẫu nhiên, quét phương sai): [experiments/2026-11-12_j1_j2_controls.md](experiments/2026-11-12_j1_j2_controls.md).
 - Scheduler v9 đã **tắt** (`enabled=false`). Không còn run nào đang chạy. Quota tài khoản 1: ~14,8h/30h đã dùng (ước tính; còn ~15h; refresh 2026-11-14 00:00 UTC). Chờ người dùng quyết định bước tiếp theo.
+
+
+### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-12 (E4 seed 2022 + J2 seed 2021; sau đó DỪNG để đánh giá tổng thể) — tài khoản Kaggle 1
+Người dùng yêu cầu chạy **E4 seed 2022** và **J2 seed 2021** (song song), rồi **dừng** để đánh giá tổng thể (đảo lại quyết định bỏ E4 seed 2022). Plan, bảng tổng hợp cần lập, giới hạn: [experiments/2026-11-12_e4s2022_j2s2021.md](experiments/2026-11-12_e4s2022_j2s2021.md).
+Notebook: `kaggle/experiments/e4_mdteacher_300ep_seed2022.ipynb`, `kaggle/experiments/j2_shuffled_seed2021.ipynb`. Quy ước: best top-1. Quota tài khoản 1 trước run: 14.79h/30h (còn 15.21h).
+- **Chưa submit.**
