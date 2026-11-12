@@ -736,4 +736,6 @@ Notebook: `kaggle/experiments/e4_mdteacher_300ep_seed2022.ipynb`, `kaggle/experi
 ### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-12 (D2: bỏ TCKD trên mẫu teacher sai; một run seed 2022; tài khoản Kaggle 1)
 Người dùng chọn hướng 2 (error-aware decoupled KD) và muốn kiểm tra kết quả sau ~6h. Plan, công thức, test, quy tắc kết luận, giới hạn: [experiments/2026-11-12_d2_nckd_on_wrong.md](experiments/2026-11-12_d2_nckd_on_wrong.md).
 Notebook `kaggle/experiments/d2_nckd_on_wrong_seed2022.ipynb` (F1 + `WRONG_KD_MODE=nckd_only`). Đối chứng seed 2022: F1 72.45 best (cuối 72.34, TB10 72.27), E4 72.11. Quota tài khoản 1 trước run: 24.52h/30h (còn 5.48h; refresh 2026-11-14 00:00 UTC).
-- **Chưa submit.**
+- **D2 ĐÃ SUBMIT (RUNNING)** 2026-11-12 ~16:59 UTC, tài khoản 1, version 1, commit `5777c59`: https://www.kaggle.com/code/trananhkiet/streamlined-kd-cifar100-d2-nckd-wrong-seed2022 — dataset, Docker ghim, T4 đã xác minh.
+  Dự kiến xong ~21:40–22:25 UTC (4.7–5.4h). Quota còn 5.48h trước run (sát giới hạn: nếu run bị cắt vì hết quota thì không retry, so tại mốc epoch đạt được).
+- Scheduler v11: cron `37 0-23/2 * * *` UTC (mỗi 2 giờ, giờ chẵn; lần đọc kết quả dự kiến 22:37 UTC). **Đang chờ kết quả; lần trigger tiếp theo kiểm tra run này.**
