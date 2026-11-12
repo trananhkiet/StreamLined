@@ -704,4 +704,8 @@ Nền tảng liên quan: báo cáo deep research `reports/Loss KD CIFAR100 ResNe
 Người dùng yêu cầu chạy **J1** (trọng số hằng 0.5384 cho mọi mẫu) và **J2** (xáo trộn trọng số 0.6/0.4 trong batch) trên **một seed (2022)**, rồi đưa kết luận ban đầu. Hai run chạy song song.
 Plan, công thức, test, quy tắc kết luận: [experiments/2026-11-12_j1_j2_controls.md](experiments/2026-11-12_j1_j2_controls.md) (nằm trong hướng nghiên cứu [experiments/2026-11-12_research_direction_f1_mechanism.md](experiments/2026-11-12_research_direction_f1_mechanism.md); E4 seed 2022 đã bỏ).
 Notebook: `kaggle/experiments/j1_const0p5384_seed2022.ipynb`, `kaggle/experiments/j2_shuffled_seed2022.ipynb`. Đối chứng: F1 seed 2022 (best 72.45 / epoch cuối 72.34 / TB 10 cuối 72.27). Quy ước: best top-1. Quota tài khoản 1: 5.02h/30h trước run.
-- **Chưa submit.**
+- **J1 và J2 ĐÃ SUBMIT (cả hai RUNNING)** 2026-11-12 ~03:32 UTC, tài khoản 1, version 1, commit `d489cba`; dataset, Docker ghim, T4 đã xác minh:
+  - J1: https://www.kaggle.com/code/trananhkiet/streamlined-kd-cifar100-j1-const0p5384-seed2022
+  - J2: https://www.kaggle.com/code/trananhkiet/streamlined-kd-cifar100-j2-shuffled-seed2022
+  Quota tài khoản 1 trước run: 5.02h/30h (còn 24.98h). Dự kiến xong ~8:30–9:00 UTC (4.6–5.4h). Quy tắc kết luận sơ bộ (best top-1, ngưỡng 0.20 so với F1 seed 2022 = 72.45): xem file plan.
+- Scheduler v9: cron `37 * * * *` UTC (mỗi giờ). **Đang chờ kết quả; lần trigger tiếp theo kiểm tra hai run trước.**
