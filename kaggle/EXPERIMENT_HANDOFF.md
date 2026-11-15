@@ -755,3 +755,9 @@ Người dùng yêu cầu chạy **F1a** (KD 0.5 khi teacher đúng / 0.4 khi sa
   **Bảng 2×2 (best/cuối/TB10):** E4 72.11/71.84/71.92 · F1a 72.02/71.75/71.80 · F1b 72.60/72.28/72.43 · F1 72.45/72.34/72.27.
   **KẾT LUẬN SƠ BỘ (một seed):** lợi ích của F1 so với E4 đến từ **TĂNG KD trên mẫu teacher ĐÚNG** (+0.46 best / +0.52 cuối / +0.49 TB10, nhất quán ở cả hai hàng), **không** từ giảm KD trên mẫu sai (≈ 0). **F1b ≥ F1 và best 72.60 > paper SKD 72.50 (kết quả cao nhất của dự án; một seed).** D2/Error-Aware DKD phía mẫu sai không phải đòn bẩy. J1 (hằng 0.5384 → −0.60) vẫn chưa giải thích được. Chi tiết + gợi ý (F1b seed 2021, F1c 0.7/0.5): [experiments/2026-11-15_f1a_f1b_branch_split.md](experiments/2026-11-15_f1a_f1b_branch_split.md).
 - Scheduler v12 đã **tắt** (`enabled=false`). Không còn run nào đang chạy. Quota tài khoản 1: ~9,7h/30h đã dùng (còn ~20,3h; refresh 2026-11-21 00:00 UTC). Chờ người dùng quyết định bước tiếp theo.
+
+
+### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-15 (F1b seed 2021 + F1c 0.7/0.5 seed 2022, song song; tài khoản Kaggle 1)
+Người dùng yêu cầu thử hai gợi ý sau F1a/F1b: **F1b seed 2021** (xác nhận F1b ≥ F1, vượt 72.5 ở seed khác) và **F1c** (KD 0.7 khi teacher đúng / 0.5 khi sai, seed 2022; liều–đáp ứng). Plan, đối chứng, cách đọc: [experiments/2026-11-15_f1b_seed2021_f1c_dose.md](experiments/2026-11-15_f1b_seed2021_f1c_dose.md).
+Hiện thể trạng: F1b seed 2022 = 72.60 / 72.28 / 72.43 (best/cuối/TB10); F1 s2021 72.32/72.13/72.14, s2022 72.45/72.34/72.27; E4 s2021 72.10/71.70/71.73, s2022 72.11/71.84/71.92. Quota tài khoản 1: 9.69h/30h (còn 20.3h; refresh 2026-11-21 00:00 UTC).
+- **Chưa submit.**
