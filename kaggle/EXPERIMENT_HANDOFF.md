@@ -760,4 +760,8 @@ Người dùng yêu cầu chạy **F1a** (KD 0.5 khi teacher đúng / 0.4 khi sa
 ### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-15 (F1b seed 2021 + F1c 0.7/0.5 seed 2022, song song; tài khoản Kaggle 1)
 Người dùng yêu cầu thử hai gợi ý sau F1a/F1b: **F1b seed 2021** (xác nhận F1b ≥ F1, vượt 72.5 ở seed khác) và **F1c** (KD 0.7 khi teacher đúng / 0.5 khi sai, seed 2022; liều–đáp ứng). Plan, đối chứng, cách đọc: [experiments/2026-11-15_f1b_seed2021_f1c_dose.md](experiments/2026-11-15_f1b_seed2021_f1c_dose.md).
 Hiện thể trạng: F1b seed 2022 = 72.60 / 72.28 / 72.43 (best/cuối/TB10); F1 s2021 72.32/72.13/72.14, s2022 72.45/72.34/72.27; E4 s2021 72.10/71.70/71.73, s2022 72.11/71.84/71.92. Quota tài khoản 1: 9.69h/30h (còn 20.3h; refresh 2026-11-21 00:00 UTC).
-- **Chưa submit.**
+- **F1b seed 2021 và F1c ĐÃ SUBMIT (cả hai RUNNING)** 2026-11-15 ~15:08 UTC, tài khoản 1, version 1, commit `c7e3d6a`; dataset, Docker ghim, T4 đã xác minh:
+  - F1b seed 2021: https://www.kaggle.com/code/trananhkiet/streamlined-kd-cifar100-f1b-seed2021
+  - F1c (0.7/0.5, seed 2022): https://www.kaggle.com/code/trananhkiet/streamlined-kd-cifar100-f1c-seed2022
+  Dự kiến xong ~19:50–20:35 UTC (4.7–5.4h). Quota còn ~20.3h trước run (~10h cho hai run).
+- Scheduler v13: cron `37 0-23/2 * * *` UTC (mỗi 2 giờ, giờ chẵn; lần đọc kết quả dự kiến 20:37 UTC). **Đang chờ kết quả; lần trigger tiếp theo kiểm tra hai run.**
