@@ -747,4 +747,8 @@ Notebook `kaggle/experiments/d2_nckd_on_wrong_seed2022.ipynb` (F1 + `WRONG_KD_MO
 ### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-15 (F1a + F1b song song, seed 2022; tài khoản Kaggle 1)
 Người dùng yêu cầu chạy **F1a** (KD 0.5 khi teacher đúng / 0.4 khi sai: chỉ giảm KD ở mẫu sai) và **F1b** (KD 0.6 / 0.5: chỉ tăng KD ở mẫu đúng) song song để tách nguồn lợi ích của F1, rồi kiểm tra sau ~6h. Plan, bảng 2×2, cách đọc, giới hạn: [experiments/2026-11-15_f1a_f1b_branch_split.md](experiments/2026-11-15_f1a_f1b_branch_split.md).
 Đối chứng seed 2022: F1 72.45/72.34/72.27, E4 72.11/71.84/71.92, J2 72.39/72.02/72.14, J1 71.51/71.24/71.24, D2 72.05/71.70/71.73. Quota tài khoản 1: 0/30h (đã refresh; lần tiếp 2026-11-21 00:00 UTC).
-- **Chưa submit.**
+- **F1a và F1b ĐÃ SUBMIT (cả hai RUNNING)** 2026-11-15 ~05:44 UTC, tài khoản 1, version 1, commit `b7078a7`; dataset, Docker ghim, T4 đã xác minh:
+  - F1a: https://www.kaggle.com/code/trananhkiet/streamlined-kd-cifar100-f1a-seed2022
+  - F1b: https://www.kaggle.com/code/trananhkiet/streamlined-kd-cifar100-f1b-seed2022
+  Dự kiến xong ~10:25–11:10 UTC (4.7–5.4h). Quota tài khoản 1 trước run: 0/30h (còn ~20h sau hai run).
+- Scheduler v12: cron `37 1-23/2 * * *` UTC (mỗi 2 giờ, giờ lẻ; lần đọc kết quả dự kiến 11:37 UTC ≈ 6h sau submit). **Đang chờ kết quả; lần trigger tiếp theo kiểm tra hai run.**
