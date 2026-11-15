@@ -751,4 +751,7 @@ Người dùng yêu cầu chạy **F1a** (KD 0.5 khi teacher đúng / 0.4 khi sa
   - F1a: https://www.kaggle.com/code/trananhkiet/streamlined-kd-cifar100-f1a-seed2022
   - F1b: https://www.kaggle.com/code/trananhkiet/streamlined-kd-cifar100-f1b-seed2022
   Dự kiến xong ~10:25–11:10 UTC (4.7–5.4h). Quota tài khoản 1 trước run: 0/30h (còn ~20h sau hai run).
-- Scheduler v12: cron `37 1-23/2 * * *` UTC (mỗi 2 giờ, giờ lẻ; lần đọc kết quả dự kiến 11:37 UTC ≈ 6h sau submit). **Đang chờ kết quả; lần trigger tiếp theo kiểm tra hai run.**
+- **F1a và F1b COMPLETE (2026-11-15 ~11:38 UTC, tài khoản 1, seed 2022):** F1a (KD 0.5 đúng / 0.4 sai) = best **72.02** / cuối 71.75 / TB10 71.80 (train 68.29); **F1b (0.6 / 0.5) = best 72.60 (ep 265) / cuối 72.28 / TB10 72.43** (train 66.91). Teacher 72.41; `teacher_train_top1` 69.17%. Runtime 4,76h / 4,91h.
+  **Bảng 2×2 (best/cuối/TB10):** E4 72.11/71.84/71.92 · F1a 72.02/71.75/71.80 · F1b 72.60/72.28/72.43 · F1 72.45/72.34/72.27.
+  **KẾT LUẬN SƠ BỘ (một seed):** lợi ích của F1 so với E4 đến từ **TĂNG KD trên mẫu teacher ĐÚNG** (+0.46 best / +0.52 cuối / +0.49 TB10, nhất quán ở cả hai hàng), **không** từ giảm KD trên mẫu sai (≈ 0). **F1b ≥ F1 và best 72.60 > paper SKD 72.50 (kết quả cao nhất của dự án; một seed).** D2/Error-Aware DKD phía mẫu sai không phải đòn bẩy. J1 (hằng 0.5384 → −0.60) vẫn chưa giải thích được. Chi tiết + gợi ý (F1b seed 2021, F1c 0.7/0.5): [experiments/2026-11-15_f1a_f1b_branch_split.md](experiments/2026-11-15_f1a_f1b_branch_split.md).
+- Scheduler v12 đã **tắt** (`enabled=false`). Không còn run nào đang chạy. Quota tài khoản 1: ~9,7h/30h đã dùng (còn ~20,3h; refresh 2026-11-21 00:00 UTC). Chờ người dùng quyết định bước tiếp theo.

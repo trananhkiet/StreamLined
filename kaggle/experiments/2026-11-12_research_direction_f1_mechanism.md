@@ -92,5 +92,11 @@ Chi tiết: [2026-11-12_d2_nckd_on_wrong.md](2026-11-12_d2_nckd_on_wrong.md). B�
 → Hướng 2 **không được ủng hộ**: bỏ TCKD trên mẫu sai xóa lợi ích của F1; tri thức lớp đích của teacher trên mẫu sai có thể hữu ích (giả thuyết, chưa kiểm chứng). Phần KL bị bỏ chỉ ~4% giá trị loss của mẫu sai. Một seed; nhiễu ~0.4.
 Hệ quả: tiền đề "teacher sai ⇒ tri thức lớp đích gây hại" của Error-Aware DKD cần được xem lại; F1a/F1b vẫn là bước định vị nguồn lợi ích rẻ nhất.
 
+## Kết quả F1a/F1b (2026-11-15, một seed 2022) — cập nhật quan trọng
+Chi tiết: [2026-11-15_f1a_f1b_branch_split.md](2026-11-15_f1a_f1b_branch_split.md). Bảng 2×2 (best / cuối / TB 10): E4 (KD đúng/sai 0.5/0.5) 72.11 / 71.84 / 71.92 · **F1a (0.5/0.4) 72.02 / 71.75 / 71.80** · **F1b (0.6/0.5) 72.60 / 72.28 / 72.43** · F1 (0.6/0.4) 72.45 / 72.34 / 72.27.
+- **Lợi ích của F1 đến từ việc TĂNG KD trên mẫu teacher ĐÚNG** (+0.46 best, +0.52 cuối, +0.49 TB 10; nhất quán ở cả hai hàng), **không** phải từ giảm KD trên mẫu sai (≈ 0, −0.1).
+- **F1b (chỉ tăng KD ở mẫu đúng) ≥ F1**: best **72.60 > paper SKD 72.50** — kết quả cao nhất của dự án (một seed).
+- Hệ quả cho các giả thuyết: **A được tinh chỉnh thành "tin teacher nhiều hơn khi nó đúng"** (không phải "tin ít hơn khi nó sai"); **D2 / Error-Aware DKD phía mẫu sai (mục 4) không phải đòn bẩy**; hướng đáng khai thác hơn là **tối ưu trọng số và loss trên nhánh mẫu teacher ĐÚNG**. J1 (hằng 0.5384 → −0.60) vẫn chưa giải thích được.
+
 ## Trạng thái
-Hướng nghiên cứu ghi lại 2026-11-12. Đã chạy: J1/J2 (seed 2022), E4 seed 2022, J2 seed 2021, **D2 (seed 2022)**; kết quả ở trên. J3, F1a/F1b, J4 chưa chạy. Quota tài khoản 1 gần hết đến 2026-11-14 00:00 UTC; bước tiếp theo chờ người dùng quyết định.
+Hướng nghiên cứu ghi lại 2026-11-12. Đã chạy: J1/J2, E4 seed 2022, J2 seed 2021, D2, **F1a, F1b** (seed 2022). Chưa chạy: J3, J4, F1b seed 2021, F1c. Bước tiếp theo chờ người dùng quyết định.
