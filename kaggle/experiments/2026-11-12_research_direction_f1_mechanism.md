@@ -98,5 +98,12 @@ Chi tiết: [2026-11-15_f1a_f1b_branch_split.md](2026-11-15_f1a_f1b_branch_split
 - **F1b (chỉ tăng KD ở mẫu đúng) ≥ F1**: best **72.60 > paper SKD 72.50** — kết quả cao nhất của dự án (một seed).
 - Hệ quả cho các giả thuyết: **A được tinh chỉnh thành "tin teacher nhiều hơn khi nó đúng"** (không phải "tin ít hơn khi nó sai"); **D2 / Error-Aware DKD phía mẫu sai (mục 4) không phải đòn bẩy**; hướng đáng khai thác hơn là **tối ưu trọng số và loss trên nhánh mẫu teacher ĐÚNG**. J1 (hằng 0.5384 → −0.60) vẫn chưa giải thích được.
 
+## Kết quả F1b seed 2021 + F1c (2026-11-15) — cập nhật
+Chi tiết: [2026-11-15_f1b_seed2021_f1c_dose.md](2026-11-15_f1b_seed2021_f1c_dose.md). Trung bình hai seed (best / cuối / TB 10): **E4 72.11 / 71.77 / 71.83 · F1 72.39 / 72.24 / 72.21 · F1b 72.44 / 72.19 / 72.22**.
+- **F1b ≈ F1 ở hai seed** (F1b − F1 = +0.05 / −0.05 / +0.02) và cả hai hơn E4 ~+0.3 đến +0.4 → "tăng KD ở mẫu teacher đúng lên 0.6" lặp lại được; F1b best 72.27 ở seed 2021 (+0.17 so với E4 theo best, +0.40 theo epoch cuối).
+- **F1c (KD đúng 0.7) quá tay** (seed 2022): best 72.20, −0.40 so với F1b, ≈ E4 → hiệu ứng theo liều **không đơn điệu**, đỉnh quanh 0.6 (một seed ở 0.7).
+- F1b best > paper 72.50 chỉ ở seed 2022 (72.60); trung bình hai seed 72.44 (< 72.50 một chút) → chưa vượt paper một cách bền vững.
+Hệ quả: hướng "mẫu teacher ĐÚNG" là nguồn lợi ích của F1; loss mới nên được thiết kế quanh nhánh mẫu đúng với mức KD vừa phải (không tăng thêm). J4 (tách độ tin cậy khỏi độ khó) và thêm seed vẫn chưa làm.
+
 ## Trạng thái
-Hướng nghiên cứu ghi lại 2026-11-12. Đã chạy: J1/J2, E4 seed 2022, J2 seed 2021, D2, **F1a, F1b** (seed 2022). Chưa chạy: J3, J4, F1b seed 2021, F1c. Bước tiếp theo chờ người dùng quyết định.
+Hướng nghiên cứu ghi lại 2026-11-12. Đã chạy: J1/J2, E4 seed 2022, J2 seed 2021, D2, F1a/F1b, **F1b seed 2021, F1c**. Chưa chạy: J3, J4, F1c seed 2021 hoặc 0.65/0.5. Bước tiếp theo chờ người dùng quyết định.

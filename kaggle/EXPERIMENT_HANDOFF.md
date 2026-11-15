@@ -764,4 +764,8 @@ Hiện thể trạng: F1b seed 2022 = 72.60 / 72.28 / 72.43 (best/cuối/TB10); 
   - F1b seed 2021: https://www.kaggle.com/code/trananhkiet/streamlined-kd-cifar100-f1b-seed2021
   - F1c (0.7/0.5, seed 2022): https://www.kaggle.com/code/trananhkiet/streamlined-kd-cifar100-f1c-seed2022
   Dự kiến xong ~19:50–20:35 UTC (4.7–5.4h). Quota còn ~20.3h trước run (~10h cho hai run).
-- Scheduler v13: cron `37 0-23/2 * * *` UTC (mỗi 2 giờ, giờ chẵn; lần đọc kết quả dự kiến 20:37 UTC). **Đang chờ kết quả; lần trigger tiếp theo kiểm tra hai run.**
+- **F1b seed 2021 và F1c COMPLETE (đọc lúc 23:16 UTC 15/11, lịch kiểm tra một lần theo yêu cầu người dùng, tài khoản 1):**
+  F1b seed 2021 (KD 0.6/0.5) = best **72.27** / cuối 72.10 / TB10 72.01 (train 66.80). F1c seed 2022 (KD 0.7/0.5) = best **72.20** / cuối 71.89 / TB10 71.92 (train 66.18). Teacher 72.41; runtime 4,90h / 4,76h.
+  **Trung bình hai seed (best/cuối/TB10):** E4 72.11/71.77/71.83 · F1 72.39/72.24/72.21 · **F1b 72.44/72.19/72.22**. F1b − E4 = +0.33/+0.42/+0.39; **F1b − F1 ≈ 0**; F1c − F1b = −0.40/−0.39/−0.51; F1c ≈ E4.
+  **KẾT LUẬN SƠ BỘ:** (1) F1b lặp lại ở seed 2021 (≈ F1, hơn E4 ~+0.3 đến +0.4; theo best +0.17 vừa dưới ngưỡng 0.20, theo cuối/TB10 ≥ 0.28). (2) F1b vượt paper 72.50 chỉ ở seed 2022; trung bình 72.44 → chưa vượt bền. (3) **F1c 0.7 quá tay** (≈ E4): hiệu ứng theo liều không đơn điệu, đỉnh quanh 0.6 (một seed). (4) Lợi ích của F1 ≈ KD ở mẫu teacher đúng ở mức vừa phải (0.6), không phải xử lý mẫu sai. Chi tiết + gợi ý (F1c seed 2021 / 0.65, 0.55, J4, seed thứ ba): [experiments/2026-11-15_f1b_seed2021_f1c_dose.md](experiments/2026-11-15_f1b_seed2021_f1c_dose.md).
+- Scheduler đã **tắt** (`enabled=false`). Không còn run nào đang chạy. Quota tài khoản 1: ~19,4h/30h đã dùng (còn ~10,6h; refresh 2026-11-21 00:00 UTC). Chờ người dùng quyết định bước tiếp theo.
