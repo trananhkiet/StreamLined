@@ -742,3 +742,9 @@ Notebook `kaggle/experiments/d2_nckd_on_wrong_seed2022.ipynb` (F1 + `WRONG_KD_MO
   So cùng seed 2022: **F1 72.45/72.34/72.27 → Δ best −0.40 / cuối −0.64 / TB10 −0.54 (D2 KÉM hơn F1 theo quy tắc ≤ −0.20)**; **E4 72.11/71.84/71.92 → D2 ≈ E4** (−0.06/−0.14/−0.19). Bỏ TCKD trên mẫu sai xóa lợi ích của F1.
   **KẾT LUẬN SƠ BỘ:** hướng 2 (error-aware decoupled) **không được ủng hộ**; tri thức lớp đích trên mẫu teacher sai có thể hữu ích (giả thuyết). Một seed; nhiễu ~0.4; chưa biết nhánh nào của F1 tạo lợi ích (F1a/F1b chưa chạy). Chi tiết + gợi ý (D2 seed 2021, F1a/F1b, đảo ngược: giữ TCKD bỏ NCKD): [experiments/2026-11-12_d2_nckd_on_wrong.md](experiments/2026-11-12_d2_nckd_on_wrong.md).
 - Scheduler v11 đã **tắt** (`enabled=false`). Không còn run nào đang chạy. Quota tài khoản 1: ~29,3h/30h đã dùng (ước tính; còn ~0,7h; refresh 2026-11-14 00:00 UTC). Chờ người dùng quyết định bước tiếp theo.
+
+
+### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-15 (F1a + F1b song song, seed 2022; tài khoản Kaggle 1)
+Người dùng yêu cầu chạy **F1a** (KD 0.5 khi teacher đúng / 0.4 khi sai: chỉ giảm KD ở mẫu sai) và **F1b** (KD 0.6 / 0.5: chỉ tăng KD ở mẫu đúng) song song để tách nguồn lợi ích của F1, rồi kiểm tra sau ~6h. Plan, bảng 2×2, cách đọc, giới hạn: [experiments/2026-11-15_f1a_f1b_branch_split.md](experiments/2026-11-15_f1a_f1b_branch_split.md).
+Đối chứng seed 2022: F1 72.45/72.34/72.27, E4 72.11/71.84/71.92, J2 72.39/72.02/72.14, J1 71.51/71.24/71.24, D2 72.05/71.70/71.73. Quota tài khoản 1: 0/30h (đã refresh; lần tiếp 2026-11-21 00:00 UTC).
+- **Chưa submit.**
