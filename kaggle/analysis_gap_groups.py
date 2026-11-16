@@ -165,11 +165,70 @@ def extract(args) -> None:
           f"teacher_top1={(t.argmax(1)==labels).float().mean()*100:.2f}")
 
 
+def extract_aug(args) -> None:
+    """Training-distribution analysis: weak view (crop+flip) and strong view (crop+flip+RandAugment) of the SAME fixed
+    10k train subset. Augmented tensors are generated ONCE (fixed seed) and every model sees exactly the same tensors."""
+    import random
+    import torchvision
+    import torchvision.transforms as transforms
+
+    mod = _load_main_module()
+    device = mod.DEVICE
+    mod.prepare_cifar100()
+    norm = transforms.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761))
+    weak = transforms.Compose([transforms.RandomCrop(32, padding=4), transforms.RandomHorizontalFlip(),
+                               transforms.ToTensor(), norm])
+    strong = transforms.Compose([transforms.RandomCrop(32, padding=4), transforms.RandomHorizontalFlip(),
+                                 mod.PaperRandAugment(2), transforms.ToTensor(), norm])
+    base = torchvision.datasets.CIFAR100(mod.DATA_DIR, train=True, download=False)       # PIL images, no transform
+    idx = np.sort(np.random.default_rng(SUBSET_SEED).permutation(len(base))[:ANALYSIS_SUBSET])
+    y = torch.from_numpy(np.asarray(base.targets)[idx]).long()
+    random.seed(args.aug_seed); np.random.seed(args.aug_seed); torch.manual_seed(args.aug_seed)
+    xs_weak = torch.stack([weak(base[i][0]) for i in idx])
+    xs_strong = torch.stack([strong(base[i][0]) for i in idx])
+    x_all = torch.cat([xs_weak, xs_strong])
+    view = torch.cat([torch.zeros(len(idx)), torch.ones(len(idx))]).long()
+    y_all = torch.cat([y, y])
+
+    @torch.no_grad()
+    def run(model):
+        model.eval()
+        return torch.cat([model(x_all[i:i + 500].to(device)).float().cpu() for i in range(0, len(x_all), 500)])
+
+    teacher = mod.resnet56().to(device)
+    t_state = mod.load_state_dict(Path(args.teacher))
+    for key, value in teacher.state_dict().items():
+        if key.endswith("num_batches_tracked") and key not in t_state:
+            t_state[key] = torch.zeros_like(value)
+    teacher.load_state_dict(t_state, strict=True)
+    t = run(teacher)
+    for v, name in ((0, "weak"), (1, "strong")):
+        print(f"teacher top1 on {name} view: {(t[view == v].argmax(1) == y_all[view == v]).float().mean() * 100:.2f}")
+    Path(args.out_dir).mkdir(parents=True, exist_ok=True)
+    for spec in args.student:
+        name, path = spec.split("=", 1)
+        student = mod.resnet20().to(device)
+        raw = mod._torch_load(Path(path))
+        if isinstance(raw, dict) and "student" in raw:
+            raw = raw["student"]
+        student.load_state_dict(raw, strict=True)
+        sl = run(student)
+        out = Path(args.out_dir) / f"{name}.npz"
+        np.savez(out, s=sl.numpy(), t=t.numpy(), y=y_all.numpy(), view=view.numpy(), idx=np.asarray(idx))
+        print(f"saved {out}: " + "  ".join(
+            f"{vn} student_top1={(sl[view == v].argmax(1) == y_all[view == v]).float().mean() * 100:.2f}"
+            for v, vn in ((0, "weak"), (1, "strong"))))
+
+
 def report(args) -> None:
     def load(spec):
         name, path = spec.split("=", 1)
         z = np.load(path, allow_pickle=True)
-        return name, torch.from_numpy(z["s"]), torch.from_numpy(z["t"]), torch.from_numpy(z["y"]).long()
+        keep = np.ones(len(z["y"]), dtype=bool)
+        if getattr(args, "view", "all") != "all":
+            keep = z["view"] == {"weak": 0, "strong": 1}[args.view]
+        return (name, torch.from_numpy(z["s"][keep]), torch.from_numpy(z["t"][keep]),
+                torch.from_numpy(z["y"][keep]).long())
 
     (na, sa, ta, ya), (nb, sb, tb, yb) = load(args.a), load(args.b)
     if not torch.equal(ya, yb) or not torch.allclose(ta, tb, atol=1e-4):
@@ -239,7 +298,13 @@ if __name__ == "__main__":
     e = sub.add_parser("extract")
     e.add_argument("out"); e.add_argument("--student", required=True); e.add_argument("--teacher", required=True)
     e.add_argument("--split", choices=("train", "test"), default="train")
+    g = sub.add_parser("extract_aug")
+    g.add_argument("out_dir"); g.add_argument("--teacher", required=True)
+    g.add_argument("--student", action="append", required=True, help="NAME=PATH (repeatable)")
+    g.add_argument("--aug_seed", type=int, default=12345)
     r = sub.add_parser("report")
     r.add_argument("--a", required=True); r.add_argument("--b", required=True); r.add_argument("--out", required=True)
+    r.add_argument("--view", choices=("all", "weak", "strong"), default="all")
     a = ap.parse_args()
-    {"selftest": lambda: selftest(), "extract": lambda: extract(a), "report": lambda: report(a)}[a.cmd]()
+    {"selftest": lambda: selftest(), "extract": lambda: extract(a), "extract_aug": lambda: extract_aug(a),
+     "report": lambda: report(a)}[a.cmd]()
