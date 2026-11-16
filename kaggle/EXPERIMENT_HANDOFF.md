@@ -785,3 +785,11 @@ Session v1 lỗi đã được người dùng dừng (quota không còn tăng b�
 - Kết luận: G2 vẫn chưa đủ dữ liệu; G2 chỉ ~10% mẫu → K1 chỉ thêm ~14% lượng KD phụ của F1b → **chưa train K1**. Gradient xung đột ở vùng teacher sai đúng cơ chế nhưng F1a/D2 đã cho thấy chỉnh nhẹ ≈0, chỉnh mạnh có hại. F1b trông giống điều chuẩn (fit train ít hơn, test +0.44) hơn là học thêm ở G2.
 - Quota tài khoản 1: 22,34h/30h đã dùng (còn ~7,7h; refresh 2026-11-21 00:00 UTC). Không có run nào đang chạy, scheduler tắt.
 
+
+### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-16 (Cross-View KD: D0 FAIL → CV1 KHÔNG train)
+Kế hoạch + tiêu chí ghi trước + kết quả: `kaggle/experiments/2026-11-16_cv_cross_view_kd.md`. D0: Kaggle `trananhkiet/streamlined-kd-cifar100-cv-d0` v1 (~30 giây, chỉ đọc logits augment của E4 s2022).
+- Phát hiện thiết kế: loader train là `ConcatDataset([weak, strong])` shuffle → weak/strong cùng ảnh **không** nằm chung batch; CV1 cần view weak phụ của cùng ảnh cho mẫu strong.
+- D0 (10k cặp, checkpoint cuối E4): xung đột CE–KD trên mẫu strong 54.67% → **3.87%** (C1 đạt, gần như do cấu trúc vì T_weak đúng 97.84%); nhưng ‖g_KD‖ tăng **2.27×** (p99 2.15×; KD 2.44 → 6.90) → **C2 trượt**; ghép cặp đạt; view strong mất ngữ nghĩa 9.82% (C4 đạt). T_weak đúng & T_strong sai 58.36%; argmax teacher hai view trùng 39.8%.
+- **Quyết định: FAIL → dừng, không train CV1** (CV1 sẽ vừa đổi hướng target vừa tăng ~2.3× lực KD trên ~50% dữ liệu; J1/F1c cho thấy tăng KD có hại). Gợi ý CV2 (chuẩn hóa độ lớn ×0.44, target trộn, chỉ thay khi T_strong sai) chưa chạy, chờ người dùng.
+- Code `CROSS_VIEW_KD` (mặc định tắt) đã thêm và test (`kaggle/test_cross_view_kd.py`: tắt mode bit-exact với bản trước; ghép cặp đúng). Không có scheduler nào được tạo (pipeline dừng ở D0 ngay trong phiên). Không có run nào đang chạy.
+- Quota tài khoản 1: 82.455s ≈ 22,9h/30h đã dùng (còn ~7,1h; refresh 2026-11-21 00:00 UTC). Session v1 lỗi của `gap-groups-g1-g4` đã được người dùng dừng; quota không còn tăng.

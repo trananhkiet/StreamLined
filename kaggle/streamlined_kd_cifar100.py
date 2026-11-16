@@ -112,6 +112,9 @@ class Config:
     # Set GRAM_DIV=1 to drop the 1/C scaling (Cov(D) then comparable to the Tikhonov term); retune LAMBDA_BC with it.
     gram_div: float = float(os.getenv("GRAM_DIV", "0"))
     gram_r_wrong: float = float(os.getenv("GRAM_R_WRONG", "0.5"))
+    # Cross-view KD (CV1): for STRONG-view samples the KD target is teacher(independent weak view of the SAME original
+    # image) instead of teacher(strong view). Student inputs, CE, BC, the scalar KD mask and batch order are unchanged.
+    cross_view_kd: bool = os.getenv("CROSS_VIEW_KD", "0") == "1"
 
     @property
     def bc_weight(self) -> float:
@@ -350,6 +353,26 @@ def prepare_cifar100() -> None:
     print(f"Using checksum-verified CIFAR-100 from {source_dir}")
 
 
+class CrossViewCIFAR(torch.utils.data.Dataset):
+    """Wraps the untransformed CIFAR-100 train set. Returns (x_student, y, x_teacher_kd, index, is_strong).
+
+    weak set  : x_student = weak(img),   x_teacher_kd = x_student            (same tensor, KD target as in E4)
+    strong set: x_student = strong(img), x_teacher_kd = weak(img) (a fresh, independent weak view of the SAME image)
+    """
+
+    def __init__(self, base, student_transform, teacher_transform=None, is_strong: int = 0):
+        self.base, self.student_transform, self.teacher_transform, self.is_strong = base, student_transform, teacher_transform, is_strong
+
+    def __len__(self) -> int:
+        return len(self.base.data)
+
+    def __getitem__(self, index: int):
+        img, target = Image.fromarray(self.base.data[index]), int(self.base.targets[index])   # as torchvision.CIFAR100
+        x = self.student_transform(img)
+        x_teacher = x if self.teacher_transform is None else self.teacher_transform(img)
+        return x, target, x_teacher, index, self.is_strong
+
+
 def make_loaders() -> tuple[DataLoader, DataLoader]:
     prepare_cifar100()
     normalize = transforms.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761))
@@ -362,8 +385,13 @@ def make_loaders() -> tuple[DataLoader, DataLoader]:
         PaperRandAugment(2), transforms.ToTensor(), normalize,
     ])
     test_transform = transforms.Compose([transforms.ToTensor(), normalize])
-    weak_set = torchvision.datasets.CIFAR100(DATA_DIR, train=True, download=False, transform=weak)
-    strong_set = torchvision.datasets.CIFAR100(DATA_DIR, train=True, download=False, transform=strong)
+    if CFG.cross_view_kd:
+        base = torchvision.datasets.CIFAR100(DATA_DIR, train=True, download=False, transform=None)
+        weak_set = CrossViewCIFAR(base, weak, None, is_strong=0)
+        strong_set = CrossViewCIFAR(base, strong, weak, is_strong=1)
+    else:
+        weak_set = torchvision.datasets.CIFAR100(DATA_DIR, train=True, download=False, transform=weak)
+        strong_set = torchvision.datasets.CIFAR100(DATA_DIR, train=True, download=False, transform=strong)
     test_set = torchvision.datasets.CIFAR100(DATA_DIR, train=False, download=False, transform=test_transform)
     generator = torch.Generator().manual_seed(CFG.seed)
     train_loader = DataLoader(
@@ -516,9 +544,13 @@ def dkd_terms(
 
 
 def raw_loss_terms(
-    student_logits: torch.Tensor, teacher_logits: torch.Tensor, labels: torch.Tensor, track_stats: bool = True
+    student_logits: torch.Tensor, teacher_logits: torch.Tensor, labels: torch.Tensor, track_stats: bool = True,
+    kd_teacher_logits: torch.Tensor | None = None,
 ) -> dict[str, torch.Tensor]:
-    """Unweighted CE / KD / BC terms (KD and BC already include their masks)."""
+    """Unweighted CE / KD / BC terms (KD and BC already include their masks).
+
+    kd_teacher_logits (cross-view KD) replaces ONLY the KD target; masks and BC keep using teacher_logits."""
+    kd_target_logits = teacher_logits if kd_teacher_logits is None else kd_teacher_logits
     if track_stats:
         LOGIT_STATS["student_std"] += student_logits.detach().std(dim=1).mean().item()
         LOGIT_STATS["teacher_std"] += teacher_logits.detach().std(dim=1).mean().item()
@@ -542,9 +574,9 @@ def raw_loss_terms(
     class_threshold = np.percentile(class_confidence.cpu().numpy().flatten(), 50)
     class_mask = class_confidence.le(class_threshold)
     if CFG.kd_mask_mode == "per_sample":
-        kd_term = (kd_loss(student_logits, teacher_logits, CFG.temperature, per_sample=True) * confidence_mask).mean()
+        kd_term = (kd_loss(student_logits, kd_target_logits, CFG.temperature, per_sample=True) * confidence_mask).mean()
     else:
-        kd_term = (kd_loss(student_logits, teacher_logits, CFG.temperature) * confidence_mask).mean()
+        kd_term = (kd_loss(student_logits, kd_target_logits, CFG.temperature) * confidence_mask).mean()
     gram_weights = None
     if CFG.gram_weight_mode == "teacher_correct":
         gram_weights = gram_reliability_weights(teacher_logits, labels, CFG.gram_r_wrong)
@@ -651,8 +683,12 @@ def pop_sample_weight_stats() -> dict[str, float]:
     return stats
 
 
-def distillation_losses(student_logits: torch.Tensor, teacher_logits: torch.Tensor, labels: torch.Tensor) -> dict[str, torch.Tensor]:
-    raw = raw_loss_terms(student_logits, teacher_logits, labels)
+def distillation_losses(
+    student_logits: torch.Tensor, teacher_logits: torch.Tensor, labels: torch.Tensor, kd_teacher_logits: torch.Tensor | None = None
+) -> dict[str, torch.Tensor]:
+    if kd_teacher_logits is not None and (CFG.loss_mode != "skd" or CFG.sample_weight_mode != "none" or CFG.late_kd_start):
+        raise ValueError("CROSS_VIEW_KD is defined only on the plain E4 SKD loss (LOSS_MODE=skd, SAMPLE_WEIGHT_MODE=none)")
+    raw = raw_loss_terms(student_logits, teacher_logits, labels, kd_teacher_logits=kd_teacher_logits)
     if CFG.loss_mode == "dkd":
         warmup = min(CURRENT_EPOCH["value"] / max(CFG.dkd_warmup, 1), 1.0)
         return {"ce": CFG.dkd_ce_weight * raw["ce"], "kd": warmup * raw["kd"], "bc": 0.0 * raw["bc"]}
@@ -694,13 +730,30 @@ def distillation_losses(student_logits: torch.Tensor, teacher_logits: torch.Tens
 
 
 GRAD_STATS = {"ce": 0.0, "kd": 0.0, "bc": 0.0, "count": 0.0}
+CV_STATS = {"strong": 0.0, "tweak_correct": 0.0, "tstrong_correct": 0.0, "tweak_right_tstrong_wrong": 0.0, "total": 0.0}
+
+
+def pop_cv_stats() -> dict[str, float]:
+    if not CV_STATS["total"]:
+        return {}
+    n_strong = max(CV_STATS["strong"], 1.0)
+    stats = {
+        "cv_strong_pct": 100.0 * CV_STATS["strong"] / CV_STATS["total"],
+        "cv_tweak_acc_on_strong": 100.0 * CV_STATS["tweak_correct"] / n_strong,     # pairing check: ~98% if paired correctly
+        "cv_tstrong_acc_on_strong": 100.0 * CV_STATS["tstrong_correct"] / n_strong,
+        "cv_target_changed_pct": 100.0 * CV_STATS["tweak_right_tstrong_wrong"] / n_strong,
+    }
+    for key in CV_STATS:
+        CV_STATS[key] = 0.0
+    return stats
 
 
 def probe_last_layer_grads(
-    student: nn.Module, student_logits: torch.Tensor, teacher_logits: torch.Tensor, labels: torch.Tensor
+    student: nn.Module, student_logits: torch.Tensor, teacher_logits: torch.Tensor, labels: torch.Tensor,
+    kd_teacher_logits: torch.Tensor | None = None,
 ) -> None:
     """Accumulate ||d term / d fc.weight||_2 of each UNWEIGHTED term (does not touch the real backward pass)."""
-    raw = raw_loss_terms(student_logits, teacher_logits, labels, track_stats=False)
+    raw = raw_loss_terms(student_logits, teacher_logits, labels, track_stats=False, kd_teacher_logits=kd_teacher_logits)
     for name, term in raw.items():
         if not term.requires_grad:
             continue
@@ -869,21 +922,39 @@ def train_one_epoch(student: nn.Module, teacher: nn.Module, loader: DataLoader, 
     teacher.eval()
     totals = {"loss": 0.0, "ce": 0.0, "kd": 0.0, "bc": 0.0, "top1": 0.0, "examples": 0.0}
     progress = tqdm(loader, leave=False)
-    for batch_index, (images, labels) in enumerate(progress):
+    for batch_index, batch in enumerate(progress):
         if CFG.limit_train_batches and batch_index >= CFG.limit_train_batches:
             break
+        if CFG.cross_view_kd:
+            images, labels, teacher_kd_images, _, is_strong = batch
+        else:
+            images, labels = batch
         images = images.to(DEVICE, non_blocking=True)
         labels = labels.to(DEVICE, non_blocking=True)
+        kd_teacher_logits = None
         with torch.no_grad():
             teacher_logits = teacher(images)
             if CFG.teacher_correction == "swap":
                 teacher_logits = swap_wrong_teacher_logits(teacher_logits, labels)
             elif CFG.teacher_correction != "none":
                 raise ValueError(f"Unknown TEACHER_CORRECTION: {CFG.teacher_correction}")
+            if CFG.cross_view_kd:
+                strong = is_strong.to(DEVICE).bool()
+                kd_teacher_logits = teacher_logits.clone()
+                if strong.any():
+                    weak_view_logits = teacher(teacher_kd_images.to(DEVICE, non_blocking=True)[strong])
+                    kd_teacher_logits[strong] = weak_view_logits   # teacher is in eval mode: per-sample, batch-independent
+                    tw_ok = weak_view_logits.argmax(1).eq(labels[strong])
+                    ts_ok = teacher_logits[strong].argmax(1).eq(labels[strong])
+                    CV_STATS["tweak_correct"] += tw_ok.sum().item()
+                    CV_STATS["tstrong_correct"] += ts_ok.sum().item()
+                    CV_STATS["tweak_right_tstrong_wrong"] += (tw_ok & ~ts_ok).sum().item()
+                CV_STATS["strong"] += strong.sum().item()
+                CV_STATS["total"] += float(labels.numel())
         student_logits = student(images)
-        losses = distillation_losses(student_logits, teacher_logits, labels)
+        losses = distillation_losses(student_logits, teacher_logits, labels, kd_teacher_logits=kd_teacher_logits)
         if CFG.grad_log_every and batch_index % CFG.grad_log_every == 0:
-            probe_last_layer_grads(student, student_logits, teacher_logits, labels)
+            probe_last_layer_grads(student, student_logits, teacher_logits, labels, kd_teacher_logits=kd_teacher_logits)
         loss = sum(losses.values())
         if CFG.optim_mode == "dot":
             # DOT: task loss (CE) and distillation loss (KD + BC) get their own backward pass and momentum buffer.
@@ -1057,6 +1128,7 @@ def run_experiment() -> dict[str, object]:
             **pop_dkd_stats(),
             **pop_dot_stats(),
             **pop_sample_weight_stats(),
+            **pop_cv_stats(),
             "elapsed_seconds": time.time() - started_at,
             **{f"test_{key}": value for key, value in test_metrics.items()},
         }
@@ -1071,6 +1143,7 @@ def run_experiment() -> dict[str, object]:
             + (f" | sw_same={row['sw_shuffle_same_pct']:.2f}%" if "sw_shuffle_same_pct" in row else "")
             + (f" | wrong={row['wrong_pct']:.2f}% tckd_removed={row['wrong_kd_removed_share_pct']:.1f}%" if "wrong_kd_removed_share_pct" in row else "")
             + (f" | gram_wrong={row['gram_teacher_wrong_pct']:.2f}% W[{row['gram_w_min_mean']:.3f},{row['gram_w_max_mean']:.3f}]" if "gram_teacher_wrong_pct" in row else "")
+            + (f" | cv strong={row['cv_strong_pct']:.1f}% Tweak_acc={row['cv_tweak_acc_on_strong']:.2f} Tstrong_acc={row['cv_tstrong_acc_on_strong']:.2f} target_fixed={row['cv_target_changed_pct']:.2f}%" if "cv_strong_pct" in row else "")
             + (f" | gradnorm ce/kd/bc={row['gradnorm_ce']:.3f}/{row['gradnorm_kd']:.3f}/{row['gradnorm_bc']:.4f}" if "gradnorm_bc" in row else "")
         )
         if test_metrics["top1"] > best_top1:
