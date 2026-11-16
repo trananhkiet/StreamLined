@@ -1,34 +1,58 @@
-# Phân tích nhóm G1–G4 (teacher/student đúng-sai) cho E4 vs F1b — TRẠNG THÁI: BỊ CHẶN, CHƯA CÓ KẾT QUẢ
+# Phân tích nhóm G1–G4 (teacher/student đúng-sai): E4 vs F1b, seed 2022 — KẾT QUẢ
 
-Ngày: 2026-11-16. Chỉ inference trên checkpoint đã có, không train, không submit, không scheduler.
+Ngày: 2026-11-16. Chỉ inference trên checkpoint đã có; không train, không scheduler. Notebook: `kaggle/experiments/gap_groups_g1_g4_analysis.ipynb`,
+Kaggle `trananhkiet/streamlined-kd-cifar100-gap-groups-g1-g4` **version 2** (v1 lỗi: `extract` khởi tạo lại CIFAR100 cho từng mẫu, chạy ~30 phút vô ích; đã sửa, commit `ed88745`+fix). Run v2 mất ~2 phút. Quota tài khoản 1: 20,31h/30h đã dùng (còn ~9,7h).
 
-## Trạng thái
-- **Chưa có số liệu nào.** Không thể tải checkpoint student của E4/F1b seed 2022 về môi trường này.
-- Checkpoint **có tồn tại** trên Kaggle (tài khoản 1): mỗi run có `resnet20_skd_best.pth`, `last_checkpoint.pt` (epoch 300) và `mdistiller_resnet56_vanilla_ckpt_epoch_240.pth`:
-  - E4 seed 2022: `trananhkiet/streamlined-kd-cifar100-e4-seed2022`
-  - F1b seed 2022: `trananhkiet/streamlined-kd-cifar100-f1b-seed2022`
-- Kaggle MCP `download_notebook_output` chỉ trả URL ở host `www.kaggleusercontent.com` (host bị chặn từ trước, xem mục tài khoản trong HANDOFF). Một lệnh tải trực tiếp bị bộ phân loại quyền của auto mode từ chối; **không thử cách vòng**.
-- Trong repo chỉ có `.pth` của teacher/student vanilla (`CIFAR-100/*_Pth/`), không phải E4/F1b. Không dùng chúng thay thế.
-- Máy này cũng không có dữ liệu CIFAR-100 (script cần `train/test/meta` như trên Kaggle).
+## Cách đo
+- Checkpoint: `last_checkpoint.pt` (epoch 300, **cùng epoch** cho hai run) là phân tích chính; `resnet20_skd_best.pth` là phụ. Teacher mdistiller dùng chung (logit teacher của hai run khớp nhau).
+- Dữ liệu phân tích: 10.000 ảnh **train** cố định (rng seed 0), transform không augment, **một view dùng chung**. Test chỉ để mô tả/kiểm tra, không dùng để chọn công thức.
+- **Kiểm tra toàn vẹn (test) PASS, tái tạo đúng số đã ghi:** teacher 72.41; E4 last 71.84 / best 72.11; F1b last 72.28 / best 72.60.
+- Gradient: dạng đóng theo logits student, đã so với autograd (sai số ≤1e-10): g_CE = softmax(s)−onehot(y); g_KD = T(softmax(s/T)−softmax(t/T)), T=4. Scalar mask ~0.5 và BC không nằm trong phép đo (cos không phụ thuộc scale).
 
-## Đã làm xong
-- `kaggle/analysis_gap_groups.py` (3 lệnh: `selftest`, `extract`, `report`). `selftest` PASS trên logits tổng hợp: gradient dạng đóng theo logits student khớp autograd (CE và T²·KL, sai số ≤1e-10), KD khớp `kd_loss(per_sample=True)` của repo, phân nhóm đầy đủ. Đây **không** phải kết quả thật.
+## Bảng 1 — Train subset (10k), checkpoint cuối. Teacher đúng 98.33% (đã nhớ train)
+| Run | Nhóm | n | % | CE | KD | p_T[y] | p_S[y] | cos(g_CE,g_KD) [CI95] | cos<0 % | ‖g_CE‖ | ‖g_KD‖ |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| E4 | G1 | 8524 | 85.24 | 0.132 | 2.219 | 0.972 | 0.896 | +0.403 [+0.390,+0.416] | 25.3 | 0.125 | 0.521 |
+| E4 | G2 | 1309 | 13.09 | 2.312 | 3.503 | 0.864 | 0.172 | **+0.776** [+0.768,+0.783] | 0.0 | 1.028 | 0.584 |
+| E4 | G3 | 33 | 0.33 | 0.462 | 2.365 | 0.329 | 0.660 | −0.210 [−0.315,−0.104] | 75.8 | 0.421 | 0.440 |
+| E4 | G4 | 134 | 1.34 | 3.542 | 2.405 | 0.247 | 0.090 | +0.391 [+0.337,+0.444] | 10.4 | 1.140 | 0.397 |
+| F1b | G1 | 8427 | 84.27 | 0.127 | 2.091 | 0.972 | 0.900 | +0.384 [+0.370,+0.397] | 26.5 | 0.121 | 0.503 |
+| F1b | G2 | 1406 | 14.06 | 2.412 | 3.522 | 0.866 | 0.160 | **+0.786** [+0.779,+0.794] | 0.0 | 1.047 | 0.595 |
+| F1b | G3 | 28 | 0.28 | 0.433 | 2.618 | 0.343 | 0.692 | −0.234 [−0.373,−0.083] | 78.6 | 0.369 | 0.446 |
+| F1b | G4 | 139 | 1.39 | 3.400 | 2.296 | 0.247 | 0.101 | +0.379 [+0.319,+0.434] | 14.4 | 1.132 | 0.393 |
 
-## Thiết kế (ghi trước khi thấy số)
-- Dữ liệu: 10.000 ảnh train cố định (rng seed 0, độc lập seed train), transform không augment, **một view dùng chung** cho teacher và student → không dùng test để chọn công thức. Hạn chế: student đã train trên toàn bộ 50k ảnh nên nhóm G phản ánh độ khớp train, không phải tổng quát hóa. (Test chỉ chạy mô tả nếu muốn: `--split test`.)
-- Checkpoint: ưu tiên `last_checkpoint.pt` (cùng epoch 300 cho cả hai); thêm best-epoch (khác epoch giữa hai run) như phân tích phụ.
-- Mỗi nhóm đo: n/tỷ lệ, CE, KD (T=4, ×T²), p_teacher[y], p_student[y], cos(g_CE, g_KD) tại logits student (mean, median, CI95 bootstrap, % cos<0), |g_CE|, |g_KD|; ma trận chuyển nhóm E4→F1b.
-- Giới hạn gradient: mask scalar (~0.5) và BC không có trong phép đo; cos không phụ thuộc scale nên không đổi.
+Student top-1 trên subset: E4 85.57, F1b 84.55. Chuyển nhóm E4→F1b: G1→G1 7970, G1→G2 554, G2→G1 457, G2→G2 852, G3→G3 20, G3→G4 13, G4→G3 8, G4→G4 126. Checkpoint best-epoch cho kết quả tương tự (G2 cos +0.775/+0.787; xem log notebook).
 
-## Tiêu chí kết luận (ghi trước)
-- G2 **được ủng hộ** nếu cos_mean(G2) > cos_mean của G1/G3/G4 với CI95 không giao, **và** F1b làm tăng p_student[y] ở G2 hơn G1, **và** G2 của F1b ít mẫu hơn E4 (chuyển G2→G1).
-- G2 **bị bác bỏ** nếu cos(G2) ≈ cos(G1) hoặc F1b không đổi gì ở G2.
-- Ngoài hai trường hợp: ghi "chưa đủ dữ liệu". Cosine chỉ là bằng chứng cơ chế tối ưu, không chứng minh tăng KD riêng G2 sẽ tăng accuracy.
-- K1 (w = 0.5 + 0.1·1[teacher đúng]·1[student sai]) **chưa được đề xuất train**; quyết định sau khi có số. Lưu ý trước: student sai trên input hiện tại thay đổi theo epoch nên K1 là trọng số động (cần tính trong train loop, không có gradient qua phép chọn); gần với WSL/TGeo-KD (trọng số theo S–T–GT) nên tính mới thấp.
+## Bảng 2 — Test (CHỈ MÔ TẢ), checkpoint cuối. Teacher đúng 72.41%
+| Run | Nhóm | n | % | CE | KD | p_T[y] | p_S[y] | cos [CI95] | cos<0 % | ‖g_CE‖ | ‖g_KD‖ |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| E4 | G1 | 6388 | 63.88 | 0.113 | 2.210 | 0.939 | 0.911 | +0.267 [+0.251,+0.283] | 34.6 | 0.108 | 0.517 |
+| E4 | G2 | 853 | 8.53 | 2.200 | 3.206 | 0.760 | 0.184 | +0.685 [+0.672,+0.697] | 0.1 | 1.028 | 0.542 |
+| E4 | G3 | 796 | 7.96 | 0.434 | 2.972 | 0.163 | 0.686 | **−0.390** [−0.411,−0.369] | 87.8 | 0.372 | 0.504 |
+| E4 | G4 | 1963 | 19.63 | 3.828 | 2.714 | 0.071 | 0.081 | +0.049 [+0.032,+0.065] | 41.6 | 1.137 | 0.425 |
+| F1b | G1 | 6421 | 64.21 | 0.110 | 2.133 | 0.938 | 0.913 | +0.241 [+0.226,+0.256] | 35.9 | 0.106 | 0.509 |
+| F1b | G2 | 820 | 8.20 | 2.135 | 3.049 | 0.758 | 0.185 | +0.691 [+0.678,+0.705] | 0.0 | 1.029 | 0.534 |
+| F1b | G3 | 807 | 8.07 | 0.448 | 2.973 | 0.154 | 0.677 | −0.380 [−0.401,−0.359] | 89.2 | 0.380 | 0.495 |
+| F1b | G4 | 1952 | 19.52 | 3.889 | 2.655 | 0.074 | 0.085 | +0.060 [+0.044,+0.076] | 39.5 | 1.139 | 0.423 |
 
-## Cách chạy khi đã có checkpoint (trên Kaggle hoặc máy có file)
-```bash
-python kaggle/analysis_gap_groups.py extract e4.npz  --student E4/last_checkpoint.pt  --teacher mdistiller_resnet56_vanilla_ckpt_epoch_240.pth --split train
-python kaggle/analysis_gap_groups.py extract f1b.npz --student F1b/last_checkpoint.pt --teacher mdistiller_resnet56_vanilla_ckpt_epoch_240.pth --split train
-python kaggle/analysis_gap_groups.py report --a E4=e4.npz --b F1b=f1b.npz --out gap_groups.json
-```
+Chuyển nhóm test E4→F1b: G1→G1 6009, G1→G2 379, G2→G1 412, G2→G2 441, G3→G3 513, G3→G4 283, G4→G3 294, G4→G4 1669.
+Net: G2→G1 +33 (412−379), G4→G3 +11 (294−283); tổng +44 mẫu đúng (+0.44 điểm). Churn hai chiều ~1370 mẫu; McNemar χ²=(706−662)²/1368=1.41, **p≈0.23 (không có ý nghĩa thống kê trên một cặp seed)**.
+
+## Trả lời các câu hỏi
+1. **G2 có CE/KD hỗ trợ nhau nhiều hơn các nhóm khác không?** Có: cos +0.78 (train) / +0.69 (test), gần như 0% mẫu xung đột, CI không giao với G1 (+0.40/+0.27), G3, G4. **Nhưng phần lớn là hệ quả cấu trúc**: teacher đúng nên phân phối KD dồn khối lượng vào y, cùng hướng với CE; không cần "học" thêm điều gì. Ngoài ra ở G2 ‖g_CE‖ (1.03) lớn gấp ~1.8 lần ‖g_KD‖ (0.58): CE đã chi phối, KD là phần bổ trợ.
+2. **G3 có xung đột không?** Có, rõ nhất: cos −0.21 (train, n nhỏ) và **−0.39 (test, n≈800)**, 76–89% mẫu có cos<0. Đây là nhóm KD kéo ngược CE (teacher p_T[y]≈0.16). Hạn chế: trên train subset G3 chỉ 28–33 mẫu vì teacher đúng 98%.
+3. **F1b có đổi gradient/confidence theo nhóm so với E4 không?** Rất ít. cos nhóm gần như giữ nguyên (±0.03); p_S[y] ở G2 không tăng (train 0.172→0.160, test 0.184→0.185); KD trung bình giảm ở G1/G2 (student bám teacher hơn: 2.219→2.091, 3.203→3.049 test). Trên train, F1b có **nhiều** G2 hơn (1406 vs 1309; train acc 84.55 vs 85.57): F1b khớp train kém hơn, nhất quán với CE bị giảm trọng số (0.4 thay vì 0.5). Lợi ích test (+33 ở G2→G1) không đi cùng việc G2 được tin cậy cao hơn.
+4. **Dữ liệu có ủng hộ tăng KD riêng cho G2 thay vì toàn bộ mẫu teacher đúng không?** **Chưa đủ dữ liệu để ủng hộ, và có dấu hiệu bất lợi.**
+   - Khối lượng: G2 chỉ 13–14% mẫu train (8.5% test), G1 là 84%. K1 (+0.1 chỉ ở G2) chỉ thêm ~1/7 lượng KD phụ so với F1b (+0.1 ở mọi mẫu teacher đúng). Thí nghiệm liều trước đó cho thấy khối lượng KD quan trọng (F1c 0.7 làm giảm 0.40; J1 tăng đều làm giảm), nên K1 khó tái tạo mức tăng của F1b trừ khi cơ chế thật sự nằm ở G2.
+   - Cơ chế gradient không cho biết nhóm nào tạo ra lợi ích; ở G1 KD thậm chí chiếm ưu thế (‖g_KD‖≈4×‖g_CE‖).
+   - Lợi ích test +44 mẫu nằm trong nhiễu (p≈0.23), khoảng 3/4 đến từ G2→G1.
+
+## Kết luận về giả thuyết G2: **CHƯA ĐỦ DỮ LIỆU** (không bác bỏ, không được ủng hộ)
+- Bằng chứng ủng hộ yếu: G2 có CE–KD đồng hướng nhất; phần lớn lợi ích ròng của F1b trên test nằm ở G2→G1 (+33/+44).
+- Bằng chứng chống: confidence G2 không tăng; G2 trên train còn tăng; hiệu ứng ròng không có ý nghĩa; một cặp seed.
+- Giới hạn: (i) một seed (2022); (ii) checkpoint cuối, không phải quỹ đạo huấn luyện; (iii) phân tích trên ảnh không augment, trong khi huấn luyện dùng 2 view, view mạnh làm teacher đúng chỉ ~69% (nhóm G3/G4 ở lúc train lớn hơn nhiều so với train subset sạch này); (iv) cos tại logits, không phải trong không gian tham số; (v) train subset là dữ liệu student đã thấy.
+
+## Về K1 (w = 0.5 + 0.1·1[teacher đúng]·1[student sai])
+- **Khuyến nghị: chưa train K1.** Lý do ở mục 4 (lượng KD phụ quá nhỏ, G2 không phải nơi F1b dịch chuyển rõ).
+- Ưu: gọn, tăng KD ở nơi CE–KD đồng hướng, có thể đo được. Hạn chế: "student sai" đổi theo epoch nên trọng số động, nhiễu vì student sai ở view augment; không gradient qua phép chọn (argmax). Rủi ro: gần như WSL/ADA-KD/TGeo-KD (trọng số theo S–T–GT) nên tính mới thấp; giả định tăng KD ở chỗ student kém đã có (WSL).
+- Nếu muốn kiểm tra thêm trước khi tốn quota train (đều là inference, vài phút): (a) lặp lại đúng phân tích này cho cặp **seed 2021** (E4 s2021 và F1b s2021 đã có output); (b) đo trên view augment 2-view giống lúc train; (c) tính nhóm theo train-augmented để có G3/G4 đủ lớn. Chưa chạy, chờ người dùng quyết định.
