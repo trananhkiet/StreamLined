@@ -149,9 +149,16 @@ def extract(args) -> None:
         torch.tensor([torchvision.datasets.CIFAR100(mod.DATA_DIR, train=True, download=False).targets[i] for i in idx])
 
     teacher = mod.resnet56().to(device)
-    teacher.load_state_dict(mod.load_state_dict(Path(args.teacher)), strict=False)
+    t_state = mod.load_state_dict(Path(args.teacher))
+    for key, value in teacher.state_dict().items():   # same handling as run_experiment: BN step counters only
+        if key.endswith("num_batches_tracked") and key not in t_state:
+            t_state[key] = torch.zeros_like(value)
+    teacher.load_state_dict(t_state, strict=True)
     student = mod.resnet20().to(device)
-    student.load_state_dict(mod.load_state_dict(Path(args.student)), strict=True)
+    raw = mod._torch_load(Path(args.student))
+    if isinstance(raw, dict) and "student" in raw:     # last_checkpoint.pt layout
+        raw = raw["student"]
+    student.load_state_dict(raw, strict=True)
     s, t = _logits(student, loader, device), _logits(teacher, loader, device)
     np.savez(args.out, s=s.numpy(), t=t.numpy(), y=labels.numpy(), idx=np.asarray(idx),
              split=args.split, student=str(args.student), teacher=str(args.teacher))
