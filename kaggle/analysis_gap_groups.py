@@ -220,6 +220,93 @@ def extract_aug(args) -> None:
             for v, vn in ((0, "weak"), (1, "strong"))))
 
 
+def d0_cross_view(s_strong, t_strong, t_weak, y, T: float = T_DEFAULT) -> dict:
+    """Same student strong logits; KD target = teacher on the strong view (original) vs teacher on the paired weak view."""
+    orig = per_sample_terms(s_strong, t_strong, y, T)
+    cross = per_sample_terms(s_strong, t_weak, y, T)
+    pt_s, pt_w = F.softmax(t_strong.double(), 1), F.softmax(t_weak.double(), 1)
+    ps_s = F.softmax(s_strong.double(), 1)
+    tw_ok, ts_ok = t_weak.argmax(1) == y, t_strong.argmax(1) == y
+    m = 0.5 * (pt_s + pt_w)
+    js = 0.5 * ((pt_s * (pt_s.clamp_min(1e-12) / m).log()).sum(1) + (pt_w * (pt_w.clamp_min(1e-12) / m).log()).sum(1))
+    def blk(t):
+        c = t["cos"].numpy()
+        return {"conflict_pct": float((c < 0).mean() * 100), "cos_mean": float(c.mean()), "cos_ci95": list(_boot_ci(c)),
+                "kd_mean": float(t["kd"].mean()), "gnorm_kd_mean": float(t["n_kd"].mean()),
+                "gnorm_kd_p99": float(np.percentile(t["n_kd"].numpy(), 99)), "gnorm_ce_mean": float(t["n_ce"].mean()),
+                "finite": bool(torch.isfinite(t["kd"]).all() and torch.isfinite(t["n_kd"]).all())}
+    out = {"n": int(len(y)), "original": blk(orig), "cross": blk(cross),
+           "teacher_weak_acc": float(tw_ok.float().mean() * 100), "teacher_strong_acc": float(ts_ok.float().mean() * 100),
+           "teacher_weak_conf_y": float(pt_w.gather(1, y[:, None]).mean()), "teacher_strong_conf_y": float(pt_s.gather(1, y[:, None]).mean()),
+           "teacher_weak_maxprob": float(pt_w.max(1).values.mean()), "teacher_strong_maxprob": float(pt_s.max(1).values.mean()),
+           "tweak_right_tstrong_wrong_pct": float((tw_ok & ~ts_ok).float().mean() * 100),
+           "tweak_wrong_tstrong_right_pct": float((~tw_ok & ts_ok).float().mean() * 100),
+           "teacher_argmax_agree_pct": float((t_weak.argmax(1) == t_strong.argmax(1)).float().mean() * 100),
+           "js_teacher_weak_strong_mean": float(js.mean()),
+           "student_strong_acc": float((s_strong.argmax(1) == y).float().mean() * 100),
+           "student_strong_agree_tweak_pct": float((s_strong.argmax(1) == t_weak.argmax(1)).float().mean() * 100),
+           "semantic_lost_pct": float(((pt_s.gather(1, y[:, None])[:, 0] < 0.01) & (ps_s.gather(1, y[:, None])[:, 0] < 0.01)).float().mean() * 100),
+           "by_teacher_case": {}}
+    for name, m_ in (("Tw_right&Ts_right", tw_ok & ts_ok), ("Tw_right&Ts_wrong", tw_ok & ~ts_ok),
+                     ("Tw_wrong&Ts_right", ~tw_ok & ts_ok), ("Tw_wrong&Ts_wrong", ~tw_ok & ~ts_ok)):
+        n = int(m_.sum())
+        row = {"n": n, "pct": 100.0 * n / len(y)}
+        if n:
+            for tag, t in (("orig", orig), ("cross", cross)):
+                c = t["cos"][m_].numpy()
+                row[f"{tag}_conflict_pct"] = float((c < 0).mean() * 100)
+                row[f"{tag}_cos_mean"] = float(c.mean())
+                row[f"{tag}_gnorm_kd"] = float(t["n_kd"][m_].mean())
+        out["by_teacher_case"][name] = row
+    o, c = out["original"], out["cross"]
+    r_mean, r_p99 = c["gnorm_kd_mean"] / o["gnorm_kd_mean"], c["gnorm_kd_p99"] / o["gnorm_kd_p99"]
+    crit = {
+        "C1_conflict": c["conflict_pct"] <= 0.75 * o["conflict_pct"] and (o["conflict_pct"] - c["conflict_pct"]) >= 10.0,
+        "C2_gnorm": 0.67 <= r_mean <= 1.5 and 0.67 <= r_p99 <= 1.5 and o["finite"] and c["finite"],
+        "C3_pairing": out["teacher_weak_acc"] >= 95.0,   # label/idx equality is asserted by the caller
+        "C4_semantic": out["semantic_lost_pct"] <= 25.0,
+    }
+    out["gnorm_kd_ratio_mean"], out["gnorm_kd_ratio_p99"] = r_mean, r_p99
+    out["criteria"] = crit
+    out["decision"] = "PASS" if all(crit.values()) else "FAIL"
+    return out
+
+
+def d0(args) -> None:
+    results = {}
+    for spec in args.npz:
+        name, path = spec.split("=", 1)
+        z = np.load(path, allow_pickle=True)
+        view = z["view"]
+        w, st = np.where(view == 0)[0], np.where(view == 1)[0]
+        assert len(w) == len(st), "unequal weak/strong counts"
+        # pairing: row k of the weak block and row k of the strong block come from the same original train image
+        idx = z["idx"]
+        assert len(idx) == len(w), "idx length must equal the number of original images"
+        assert np.array_equal(z["y"][w], z["y"][st]), "PAIRING FAILURE: labels differ between paired weak/strong rows"
+        y = torch.from_numpy(z["y"][st]).long()
+        r = d0_cross_view(torch.from_numpy(z["s"][st]), torch.from_numpy(z["t"][st]), torch.from_numpy(z["t"][w]), y)
+        r["pairing_labels_identical"] = True
+        results[name] = r
+        o, c = r["original"], r["cross"]
+        print(f"\n===== D0 [{name}]  n_strong={r['n']}  decision={r['decision']}")
+        print(f"teacher acc weak {r['teacher_weak_acc']:.2f} / strong {r['teacher_strong_acc']:.2f};  p_T[y] weak {r['teacher_weak_conf_y']:.3f} / strong {r['teacher_strong_conf_y']:.3f};"
+              f"  maxprob weak {r['teacher_weak_maxprob']:.3f} / strong {r['teacher_strong_maxprob']:.3f}")
+        print(f"Tweak right & Tstrong wrong {r['tweak_right_tstrong_wrong_pct']:.2f}%;  Tweak wrong & Tstrong right {r['tweak_wrong_tstrong_right_pct']:.2f}%;"
+              f"  teacher argmax agree {r['teacher_argmax_agree_pct']:.2f}%;  JS(Tw,Ts) {r['js_teacher_weak_strong_mean']:.3f}")
+        print(f"student strong acc {r['student_strong_acc']:.2f};  S_strong argmax == T_weak argmax {r['student_strong_agree_tweak_pct']:.2f}%;  semantic-lost {r['semantic_lost_pct']:.2f}%")
+        print("            conflict%   cos_mean [CI95]            KD      |g_KD| mean  |g_KD| p99  |g_CE| mean")
+        for tag, b in (("original", o), ("cross", c)):
+            print(f"{tag:10s}  {b['conflict_pct']:7.2f}   {b['cos_mean']:+.3f} [{b['cos_ci95'][0]:+.3f},{b['cos_ci95'][1]:+.3f}]  {b['kd_mean']:6.3f}   {b['gnorm_kd_mean']:.3f}      {b['gnorm_kd_p99']:.3f}      {b['gnorm_ce_mean']:.3f}")
+        print(f"|g_KD| ratio cross/original: mean {r['gnorm_kd_ratio_mean']:.3f}, p99 {r['gnorm_kd_ratio_p99']:.3f}")
+        for k, v in r["by_teacher_case"].items():
+            extra = "" if not v["n"] else (f"  conflict orig {v['orig_conflict_pct']:.1f}% -> cross {v['cross_conflict_pct']:.1f}%"
+                                         f"  cos {v['orig_cos_mean']:+.3f} -> {v['cross_cos_mean']:+.3f}  |g_KD| {v['orig_gnorm_kd']:.3f} -> {v['cross_gnorm_kd']:.3f}")
+            print(f"  {k:18s} n={v['n']:5d} ({v['pct']:5.2f}%){extra}")
+        print("criteria:", r["criteria"])
+    Path(args.out).write_text(json.dumps(results, indent=2))
+
+
 def report(args) -> None:
     def load(spec):
         name, path = spec.split("=", 1)
@@ -302,9 +389,12 @@ if __name__ == "__main__":
     g.add_argument("out_dir"); g.add_argument("--teacher", required=True)
     g.add_argument("--student", action="append", required=True, help="NAME=PATH (repeatable)")
     g.add_argument("--aug_seed", type=int, default=12345)
+    dd = sub.add_parser("d0")
+    dd.add_argument("--npz", action="append", required=True, help="NAME=PATH of an extract_aug npz (repeatable)")
+    dd.add_argument("--out", required=True)
     r = sub.add_parser("report")
     r.add_argument("--a", required=True); r.add_argument("--b", required=True); r.add_argument("--out", required=True)
     r.add_argument("--view", choices=("all", "weak", "strong"), default="all")
     a = ap.parse_args()
     {"selftest": lambda: selftest(), "extract": lambda: extract(a), "extract_aug": lambda: extract_aug(a),
-     "report": lambda: report(a)}[a.cmd]()
+     "report": lambda: report(a), "d0": lambda: d0(a)}[a.cmd]()
