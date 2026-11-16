@@ -138,15 +138,14 @@ def extract(args) -> None:
     norm = transforms.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761))
     tf = transforms.Compose([transforms.ToTensor(), norm])   # deterministic, one view for both models
     ds = torchvision.datasets.CIFAR100(mod.DATA_DIR, train=(args.split == "train"), download=False, transform=tf)
+    all_targets = np.asarray(ds.targets)                      # read once; never re-instantiate the dataset per sample
     if args.split == "train":
-        idx = np.random.default_rng(SUBSET_SEED).permutation(len(ds))[:ANALYSIS_SUBSET]
-        idx = np.sort(idx)
+        idx = np.sort(np.random.default_rng(SUBSET_SEED).permutation(len(ds))[:ANALYSIS_SUBSET])
         ds = Subset(ds, idx.tolist())
     else:
         idx = np.arange(len(ds))
+    labels = torch.from_numpy(all_targets[idx]).long()
     loader = DataLoader(ds, batch_size=500, shuffle=False, num_workers=0)
-    labels = torch.tensor([ds[i][1] for i in range(len(ds))]) if args.split != "train" else \
-        torch.tensor([torchvision.datasets.CIFAR100(mod.DATA_DIR, train=True, download=False).targets[i] for i in idx])
 
     teacher = mod.resnet56().to(device)
     t_state = mod.load_state_dict(Path(args.teacher))
