@@ -777,3 +777,11 @@ Báo cáo đầy đủ: `kaggle/experiments/2026-11-16_gap_groups_g1_g4_analysis
 - **G2: chưa đủ dữ liệu. K1 chưa nên train** (G2 chỉ 13–14% mẫu → K1 chỉ thêm ~1/7 lượng KD phụ của F1b; thí nghiệm liều cho thấy khối lượng KD quan trọng). Gợi ý inference rẻ trước: lặp lại cho seed 2021, và đo trên view augment. Chưa chạy.
 - Không có run huấn luyện nào, scheduler tắt. Quota tài khoản 1: 20,31h/30h đã dùng (còn ~9,7h; refresh 2026-11-21 00:00 UTC). Ghi chú: tool MCP hủy session cần session id mà API không trả ra, nên không hủy được run lỗi v1 bằng tay.
 - **CẢNH BÁO quota (2026-11-16 ~09:xx UTC):** session v1 LỖI của `streamlined-kd-cifar100-gap-groups-g1-g4` vẫn còn chạy và đang tính giờ GPU theo thời gian thực (quota tăng ~96s mỗi 95s; used 76.669s = 21,3h/30h, còn ~8,7h). Không hủy được bằng tool (cần session id). Cần dừng thủ công trên giao diện Kaggle; kiểm tra lại quota sau khi dừng. v2 (đúng) đã COMPLETE từ 08:30 UTC.
+
+### CẬP NHẬT 2026-11-16 (phân tích G1–G4 trên view AUGMENT, E4 vs F1b seed 2022) — xong
+Session v1 lỗi đã được người dùng dừng (quota không còn tăng bất thường). Run augment: Kaggle `trananhkiet/streamlined-kd-cifar100-gap-groups-aug` v1, ~70 giây; notebook `kaggle/experiments/gap_groups_aug_g1_g4.ipynb`; báo cáo = phụ lục trong `kaggle/experiments/2026-11-16_gap_groups_g1_g4_analysis.md`.
+- Teacher đúng 68.85% trên 20k mẫu augment (weak 97.84 / strong 39.86), khớp ~69.2% lúc train. Student gộp: E4 69.17, F1b 68.06 (F1b khớp train kém hơn 1.1 điểm, ở cả vùng teacher đúng lẫn sai).
+- Nhóm gộp (E4): G1 58.9% cos +0.35 · G2 9.9% cos +0.70 (0% xung đột) · **G3 10.2% cos −0.29 (88% xung đột)** · **G4 20.9% cos −0.03 (63% xung đột)**. Vùng teacher sai = 31% tín hiệu train (ảnh sạch: 1.7%), KD ở đó ngược/vuông góc CE. E4→F1b gần như không đổi cos/confidence; p_S[y] ở G2 không tăng.
+- Kết luận: G2 vẫn chưa đủ dữ liệu; G2 chỉ ~10% mẫu → K1 chỉ thêm ~14% lượng KD phụ của F1b → **chưa train K1**. Gradient xung đột ở vùng teacher sai đúng cơ chế nhưng F1a/D2 đã cho thấy chỉnh nhẹ ≈0, chỉnh mạnh có hại. F1b trông giống điều chuẩn (fit train ít hơn, test +0.44) hơn là học thêm ở G2.
+- Quota tài khoản 1: 22,34h/30h đã dùng (còn ~7,7h; refresh 2026-11-21 00:00 UTC). Không có run nào đang chạy, scheduler tắt.
+

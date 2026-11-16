@@ -56,3 +56,53 @@ Net: G2→G1 +33 (412−379), G4→G3 +11 (294−283); tổng +44 mẫu đúng (
 - **Khuyến nghị: chưa train K1.** Lý do ở mục 4 (lượng KD phụ quá nhỏ, G2 không phải nơi F1b dịch chuyển rõ).
 - Ưu: gọn, tăng KD ở nơi CE–KD đồng hướng, có thể đo được. Hạn chế: "student sai" đổi theo epoch nên trọng số động, nhiễu vì student sai ở view augment; không gradient qua phép chọn (argmax). Rủi ro: gần như WSL/ADA-KD/TGeo-KD (trọng số theo S–T–GT) nên tính mới thấp; giả định tăng KD ở chỗ student kém đã có (WSL).
 - Nếu muốn kiểm tra thêm trước khi tốn quota train (đều là inference, vài phút): (a) lặp lại đúng phân tích này cho cặp **seed 2021** (E4 s2021 và F1b s2021 đã có output); (b) đo trên view augment 2-view giống lúc train; (c) tính nhóm theo train-augmented để có G3/G4 đủ lớn. Chưa chạy, chờ người dùng quyết định.
+
+---
+
+# PHỤ LỤC — Phân tích trên view AUGMENT (phân bố lúc train)
+
+Notebook `kaggle/experiments/gap_groups_aug_g1_g4.ipynb` (Kaggle `trananhkiet/streamlined-kd-cifar100-gap-groups-aug` v1, ~70 giây). Cùng 10k ảnh train cố định, mỗi ảnh có **1 view weak** (crop+flip) và **1 view strong** (crop+flip+RandAugment), sinh **một lần** với seed 12345; teacher và cả 4 student chạy trên đúng cùng tensor → so E4/F1b sạch. Tổng 20.000 mẫu. Mọi phép đo như trên.
+
+**Kiểm tra khớp với lúc train:** teacher đúng **68.85%** trên 20k mẫu (weak 97.84%, strong 39.86%), khớp mức ~69.2% ghi trong log train. Nghĩa là phân tích này đại diện cho tín hiệu mà student thực sự nhận.
+
+## Bảng 3 — Gộp hai view (n=20.000), checkpoint cuối. Student: E4 69.17, F1b 68.06
+| Run | Nhóm | n | % | CE | KD | p_T[y] | p_S[y] | cos [CI95] | cos<0 % | ‖g_CE‖ | ‖g_KD‖ |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| E4 | G1 | 11787 | 58.94 | 0.182 | 1.901 | 0.930 | 0.863 | +0.349 [+0.339,+0.359] | 27.3 | 0.160 | 0.430 |
+| E4 | G2 | 1983 | 9.91 | 2.226 | 2.650 | 0.776 | 0.171 | **+0.700** [+0.693,+0.708] | 0.0 | 0.998 | 0.437 |
+| E4 | G3 | 2047 | 10.23 | 0.679 | 2.842 | 0.094 | 0.575 | **−0.292** [−0.303,−0.282] | 88.2 | 0.464 | 0.369 |
+| E4 | G4 | 4183 | 20.91 | 3.700 | 2.610 | 0.036 | 0.065 | **−0.034** [−0.041,−0.027] | 62.7 | 1.035 | 0.320 |
+| F1b | G1 | 11697 | 58.48 | 0.177 | 1.826 | 0.931 | 0.867 | +0.338 [+0.328,+0.349] | 28.2 | 0.156 | 0.421 |
+| F1b | G2 | 2073 | 10.37 | 2.276 | 2.617 | 0.777 | 0.166 | +0.707 [+0.700,+0.714] | 0.0 | 1.012 | 0.440 |
+| F1b | G3 | 1915 | 9.57 | 0.691 | 2.818 | 0.093 | 0.574 | −0.299 [−0.310,−0.288] | 89.4 | 0.464 | 0.367 |
+| F1b | G4 | 4315 | 21.57 | 3.679 | 2.551 | 0.038 | 0.068 | −0.039 [−0.046,−0.032] | 63.2 | 1.032 | 0.317 |
+
+Chuyển nhóm E4→F1b (gộp): G1→G1 10962, G1→G2 825, G2→G1 735, G2→G2 1248, G3→G3 1412, G3→G4 635, G4→G3 503, G4→G4 3680.
+
+## Bảng 4 — Theo view (checkpoint cuối)
+| View | Teacher đúng | Student E4 / F1b | Nhóm | % (E4) | cos (E4) | cos<0 % (E4) | cos (F1b) |
+|---|---|---|---|---|---|---|---|
+| weak | 97.84% | 84.25 / 83.74 | G1 | 83.69 | +0.388 | 25.3 | +0.381 |
+| weak | | | G2 | 14.15 | +0.742 | 0.0 | +0.749 |
+| weak | | | G3 | 0.56 | −0.237 | 73.2 | −0.165 |
+| weak | | | G4 | 1.60 | +0.358 | 11.2 | +0.324 |
+| strong | 39.86% | 54.09 / 52.38 | G1 | 34.18 | +0.252 | 32.1 | +0.232 |
+| strong | | | G2 | 5.68 | +0.596 | 0.0 | +0.609 |
+| strong | | | G3 | 19.91 | **−0.293** | 88.6 | −0.302 |
+| strong | | | G4 | 40.23 | **−0.050** | 64.8 | −0.054 |
+
+Checkpoint best-epoch cho cùng bức tranh (gộp: G2 +0.701/+0.709, G3 −0.279/−0.298, G4 −0.038/−0.039; student 69.15/67.80).
+
+## Cái gì đổi so với phân tích ảnh sạch
+1. **Nhóm teacher-sai không còn là "hiếm".** G3+G4 = **31%** mẫu (sạch: 1.7%); riêng view strong 60%. Ở đây **KD ngược hướng CE**: G3 cos −0.29 (88% mẫu xung đột); **G4 cos ≈ −0.03 (63% xung đột)**, tức KD gần như vuông góc/ngược CE ở chỗ cả hai cùng sai (trên ảnh sạch G4 là +0.39 chỉ vì n nhỏ). Đây là chỗ KD không giúp hướng đúng nhãn.
+2. **G2 nhỏ hơn nữa:** 9.9% (strong 5.7%). Cos vẫn cao (+0.70, 0% xung đột) nhưng đúng như trước là hệ quả cấu trúc.
+3. **F1b khớp train kém hơn E4** (68.06 vs 69.17, −1.1 điểm) và mất mẫu đúng ở **cả hai** phía: vùng teacher đúng (G1 −90, G2 tăng +90) và vùng teacher sai (G3 −132), dù trọng số vùng teacher sai không đổi (cùng 0.5/0.5). Tức F1b là kiểu điều chuẩn (fit train ít hơn) chứ không phải học thêm ở G2; test +0.44 đi cùng train −1.1.
+4. cos và confidence theo nhóm gần như **không đổi** giữa E4 và F1b (|Δcos| ≤ 0.02 ở gộp); p_S[y] ở G2 không tăng (0.171→0.166).
+
+## Hệ quả cho giả thuyết và K1 (sau khi có số augment)
+- **G2: vẫn "chưa đủ dữ liệu"**, không có thêm bằng chứng ủng hộ; và G2 chỉ ~10% mẫu → K1 (+0.1 chỉ ở G2) thêm khoảng **14%** lượng KD phụ của F1b (9.91/68.85 ≈ 0.14). **Vẫn khuyến nghị chưa train K1.**
+- **Điểm mới đáng theo dõi:** ở vùng teacher sai (31% tín hiệu lúc train) KD xung đột CE rõ (G3) hoặc vô hướng (G4). Giả thuyết "giảm KD ở vùng teacher sai" đúng cơ chế nhưng đã thử: F1a (KD 0.4 ở vùng sai) ≈ E4, D2 (bỏ TCKD) làm tệ hơn, nên thay đổi nhẹ không đổi kết quả và thay đổi mạnh có hại. Gradient cos chỉ là bằng chứng cơ chế, không thay thế thí nghiệm.
+- **Không dùng test để chọn công thức** trong toàn bộ phụ lục này; các con số trên là train-augmented.
+
+## Giới hạn bổ sung
+Một seed (2022); một lần bốc augment (seed 12345, mỗi ảnh một view mỗi loại, nên CI chỉ phản ánh nhiễu lấy mẫu mẫu, không phản ánh nhiễu augment); student đã thấy các ảnh gốc này; phân tích ở checkpoint cuối, không theo quỹ đạo. Quota tài khoản 1 sau run: 22,34h/30h đã dùng (còn ~7,7h).
