@@ -93,3 +93,15 @@ teacher forward thêm trên view weak phụ của cùng ảnh; mask, CE và BC v
 Test `kaggle/test_cross_view_kd.py` (CPU): tắt mode khớp bit-exact HEAD (loss và 3 bước train); bật mode với view phụ = x khớp
 (sai lệch 1.2e-7 do forward teacher trên tập con); đổi view phụ thì cập nhật đổi thật (8.6e-3); ghép cặp đúng 20/20 ảnh; ConcatDataset
 collate đúng. Tất cả PASS.
+
+## Quyết định của người dùng (2026-11-16 ~11:07 UTC): CHẠY CV1 dù D0 trượt C2
+Người dùng chỉ thị chạy CV1 đúng như kế hoạch gốc, bỏ qua tiêu chí C2. **Lưu ý khi diễn giải:** CV1 vừa đổi hướng target KD của
+mẫu strong vừa tăng ~2.27× độ lớn gradient KD trên các mẫu đó, nên kết quả không tách được hai hiệu ứng.
+- Notebook: `kaggle/experiments/cv1_cross_view_seed2022.ipynb` (`make_variant_notebook.py` với `SEED=2022 EPOCHS=300
+  TEACHER_SOURCE=mdistiller LR_MILESTONES=100,188,250 CROSS_VIEW_KD=1`; chỉ 5 dòng mặc định khác script chung).
+  Metadata: `kaggle/experiments/cv1_kernel-metadata.json` (slug `trananhkiet/streamlined-kd-cifar100-cv1-seed2022`, T4, Docker ghim,
+  dataset `fedesoriano/cifar100`, tài khoản 1).
+- Lịch: submit một lần ~11:13 UTC; theo dõi mỗi 2 giờ; khi COMPLETE thì tổng hợp (best/cuối/TB10, log cv pairing), so E4/F1b
+  seed 2022, cập nhật báo cáo + HANDOFF, commit/push, tắt lịch. Gặp lỗi/blocker thì báo cáo và tắt lịch, không tự submit lại.
+- Ước tính runtime ~5.5–6h (E4/F1b 4.6–4.9h + forward teacher trên view phụ cho ~50% batch); quota còn ~7.1h. Kiểm tra pairing
+  trong log: `Tweak_acc` phải ≈ 97–98% (nếu ~1% là ghép sai), `Tstrong_acc` ≈ 40%, `strong` ≈ 50%.
