@@ -805,3 +805,9 @@ Kế hoạch + tiêu chí ghi trước + kết quả: `kaggle/experiments/2026-1
 - **Kiểm tra 15:31 UTC (người dùng hỏi):** CV1 RUNNING; `gap-groups-g1-g4/1` vẫn RUNNING. Quota 109.480s ≈ 30,41h — **đã vượt hạn mức 30h** nhưng Kaggle chưa dừng session nào (`time_reserved` 32.192s: có vẻ thời gian của session đang chạy đã được giữ chỗ từ lúc bắt đầu). Chưa đọc được log giữa chừng (log chỉ có khi run kết thúc). Lịch monitor 16:07 UTC vẫn bật.
 - **Monitor 16:10 UTC:** CV1 **RUNNING**. `gap-groups-g1-g4/1` (bản lỗi) đã **COMPLETE** (không còn chiếm GPU). Quota 113.090s ≈ 31,41h/30h (vượt mức), `time_reserved` = 0 — chưa rõ Kaggle có để CV1 chạy hết 300 epoch không. Lần monitor tới 18:07 UTC.
 - **Monitor 18:08 UTC:** CV1 **RUNNING** (đã chạy ~4–6h kể từ khi rời hàng đợi giữa 12:11 và 14:11). Quota 120.186s ≈ 33,38h/30h (tăng ~1h/giờ đúng bằng một session). Kaggle chưa dừng run dù vượt mức. Lần monitor tới 20:07 UTC.
+
+### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-16 20:10 UTC (CV1 COMPLETE, scheduler đã tắt)
+- **CV1 (Cross-View KD, seed 2022)** = best **71.32** (ep 290) / cuối **71.16** / TB10 **71.02**, train 69.26, runtime ~6,36h. So E4 s2022 (72.11/71.84/71.92): **−0.79/−0.68/−0.90**; so F1b (72.60/72.28/72.43): −1.28/−1.12/−1.41. Ghép cặp hợp lệ (`Tweak_acc` ~97.9%, `Tstrong_acc` ~40.4%, `target_fixed` ~58%). Chi tiết: `kaggle/experiments/2026-11-16_cv_cross_view_kd.md` mục "Kết quả CV1".
+- **Kết luận:** giả thuyết Cross-View KD ở dạng CV1 **không được ủng hộ** (train cao hơn, test thấp hơn; target T_weak gần one-hot + lực KD ×2.3 trên mẫu strong). Model tốt nhất vẫn là **F1b**.
+- Lịch `CV1 submit (one-shot)` đã chạy và tự tắt; `CV1 monitor (every 2h)` (`trig_01DSG43PDaVtZeYpAmd2mFf9`) đã tắt sau lần này. Không có run nào đang chạy.
+- Quota tài khoản 1: 122.711s ≈ 34,09h (vượt 30h do session lỗi `gap-groups-g1-g4/1` chạy ~8h song song); làm mới 2026-11-21 00:00 UTC. Không submit gì thêm trước thời điểm đó.

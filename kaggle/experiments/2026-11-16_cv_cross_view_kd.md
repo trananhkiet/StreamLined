@@ -105,3 +105,28 @@ mẫu strong vừa tăng ~2.27× độ lớn gradient KD trên các mẫu đó, 
   seed 2022, cập nhật báo cáo + HANDOFF, commit/push, tắt lịch. Gặp lỗi/blocker thì báo cáo và tắt lịch, không tự submit lại.
 - Ước tính runtime ~5.5–6h (E4/F1b 4.6–4.9h + forward teacher trên view phụ cho ~50% batch); quota còn ~7.1h. Kiểm tra pairing
   trong log: `Tweak_acc` phải ≈ 97–98% (nếu ~1% là ghép sai), `Tstrong_acc` ≈ 40%, `strong` ≈ 50%.
+
+## Kết quả CV1 — COMPLETE (2026-11-16, đọc lúc 20:08 UTC)
+Kaggle `trananhkiet/streamlined-kd-cifar100-cv1-seed2022` v1, tài khoản 1, 300 epoch, seed 2022, teacher mdistiller 72.41/92.50.
+Runtime 22.890 s (~6,36h; E4 s2022 17.928 s ~4,98h → +28% do forward teacher trên view phụ). Đủ 300 dòng epoch trong log.
+
+| Model (seed 2022) | Best top-1 | Epoch cuối | TB 10 cuối | Train top-1 cuối |
+|---|---:|---:|---:|---:|
+| E4 | 72.11 | 71.84 | 71.92 | 67.12 |
+| F1b | 72.60 | 72.28 | 72.43 | 66.91 |
+| **CV1** | **71.32** (ep 290) | **71.16** | **71.02** | **69.26** |
+| CV1 − E4 | **−0.79** | **−0.68** | **−0.90** | +2.14 |
+| CV1 − F1b | −1.28 | −1.12 | −1.41 | +2.35 |
+
+Top-5 best 92.26. **Ghép cặp hợp lệ** suốt 300 epoch: `cv strong` = 50.0%, `Tweak_acc` 97.8–98.0% (teacher trên view weak phụ đúng), `Tstrong_acc` 40.2–40.6%, `target_fixed` (T_weak đúng & T_strong sai) 57.6–58.1% — khớp D0 (97.84 / 39.86 / 58.36). Gradnorm (fc) cuối ce/kd/bc = 1.005/0.641/0.0051.
+
+### Nhận xét
+1. **CV1 kém E4 rõ** ở cả ba chỉ số (−0.68 đến −0.90), vượt mức nhiễu giữa run (~0.4) dù mới một seed. Thấp nhất trong các biến thể nền E4 gần đây (J1 71.51, D2 72.05, I1 72.06).
+2. **Train cao hơn, test thấp hơn** (train 69.26 vs 67.12; test 71.16 vs 71.84): student khớp dữ liệu train tốt hơn nhưng tổng quát hóa kém hơn. Phù hợp với hai cơ chế đã cảnh báo trước khi chạy:
+   - target T_weak gần one-hot (p_T[y] ≈ 0.93 trên ảnh train teacher đã nhớ) → KD trên mẫu strong gần như trở thành thêm CE, mất "dark knowledge" (phân phối mềm, độ không chắc chắn của teacher trên ảnh méo) vốn đóng vai trò điều chuẩn;
+   - lực KD trên mẫu strong tăng ~2.3× (D0 C2 trượt), tức tăng khối lượng KD — nhất quán với J1/F1c (tăng KD có hại).
+3. Không tách được hai cơ chế trên với một run (đúng caveat đã ghi trước).
+
+### Kết luận giả thuyết Cross-View KD
+**Không được ủng hộ ở dạng CV1** (thay toàn bộ target KD của mẫu strong bằng teacher trên view weak, giữ trọng số E4): kết quả xấu hơn E4 ~0.7–0.9 điểm. Việc teacher "sai" trên view strong không phải là vấn đề cần sửa theo cách này; soft target của teacher trên view strong — dù argmax sai — có vẻ mang thông tin điều chuẩn hữu ích.
+Chưa bác bỏ được dạng nhẹ hơn (chuẩn hóa độ lớn KD, target trộn, chỉ thay khi T_strong sai); đó là thí nghiệm mới, chưa chạy, cần người dùng quyết định và cần quota (tài khoản 1 đã vượt 30h; làm mới 2026-11-21 00:00 UTC).
