@@ -793,3 +793,8 @@ Kế hoạch + tiêu chí ghi trước + kết quả: `kaggle/experiments/2026-1
 - **Quyết định: FAIL → dừng, không train CV1** (CV1 sẽ vừa đổi hướng target vừa tăng ~2.3× lực KD trên ~50% dữ liệu; J1/F1c cho thấy tăng KD có hại). Gợi ý CV2 (chuẩn hóa độ lớn ×0.44, target trộn, chỉ thay khi T_strong sai) chưa chạy, chờ người dùng.
 - Code `CROSS_VIEW_KD` (mặc định tắt) đã thêm và test (`kaggle/test_cross_view_kd.py`: tắt mode bit-exact với bản trước; ghép cặp đúng). Không có scheduler nào được tạo (pipeline dừng ở D0 ngay trong phiên). Không có run nào đang chạy.
 - Quota tài khoản 1: 82.455s ≈ 22,9h/30h đã dùng (còn ~7,1h; refresh 2026-11-21 00:00 UTC). Session v1 lỗi của `gap-groups-g1-g4` đã được người dùng dừng; quota không còn tăng.
+
+### CV1 — LỊCH ĐÃ ĐẶT (2026-11-16 11:08 UTC, người dùng yêu cầu chạy CV1 dù D0 trượt C2)
+- `trig_018kSgrHQV9pZRLpdfurZzTh` "CV1 submit (one-shot)": 11:13 UTC, submit `kaggle/experiments/cv1_cross_view_seed2022.ipynb` với metadata `kaggle/experiments/cv1_kernel-metadata.json` (slug `trananhkiet/streamlined-kd-cifar100-cv1-seed2022`), có kiểm tra trùng và quota ≥ 6.5h.
+- `trig_01DSG43PDaVtZeYpAmd2mFf9` "CV1 monitor (every 2h)": 12:07, 14:07, 16:07, 18:07 UTC…; khi COMPLETE tổng hợp best/cuối/TB10, so E4/F1b, cập nhật báo cáo + HANDOFF, commit/push và tự tắt cả hai lịch; ERROR/blocker → báo cáo và tắt, không submit lại.
+- Dự kiến CV1 xong ~17:00–17:30 UTC (5.5–6h); kết quả sẽ được thu ở lần monitor 18:07 UTC. Quota trước run ≈ 22,9h/30h.
