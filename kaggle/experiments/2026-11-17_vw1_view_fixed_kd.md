@@ -32,5 +32,42 @@ Tài khoản 2 `kitit5512trn` (quota 5.04/30h trước run). Notebook `kaggle/ex
 `kaggle/experiments/vw1_kernel-metadata.json` (slug `kitit5512trn/streamlined-kd-cifar100-vw1-seed2022`, T4, Docker ghim).
 Lịch: submit 18:01 UTC 2026-11-17; kiểm tra kết quả 23:56 UTC (theo yêu cầu người dùng: 2 lần).
 
-## Kết quả
-(điền sau)
+## Kết quả — VW1 COMPLETE (đọc 2026-11-17 23:56 UTC)
+Kaggle `kitit5512trn/streamlined-kd-cifar100-vw1-seed2022` v1 (tài khoản 2), 300 epoch, teacher mdistiller 72.41/92.50,
+runtime 17.615 s (~4,89h). Log lấy bằng `kaggle kernels logs` (đủ 300 dòng epoch).
+
+**Hợp lệ:** `vs weak` = 50.0% mọi epoch; `w w/s` = 0.5980/0.5400 ở **mọi** epoch (min = max); `Tacc w/s` TB 97.88/40.46 — trùng khớp tới
+từng số với VS1 (cùng seed → cùng thứ tự batch và augmentation), nên VW1 và VS1/F1b chỉ khác nhau ở cách gán trọng số.
+
+| Run (seed 2022) | Best | Cuối | TB 10 cuối | Train top-1 | Best top-5 |
+|---|---:|---:|---:|---:|---:|
+| E4 | 72.11 | 71.84 | 71.92 | 67.12 | — |
+| F1b | 72.60 | 72.28 | 72.43 | 66.91 | — |
+| VS1 | 72.55 | 72.22 | 72.37 | 66.54 | 93.21 |
+| **VW1** | **72.34** (ep 294) | **71.81** | **71.90** | 66.47 | 92.98 |
+| VW1 − F1b | −0.26 | **−0.47** | **−0.53** | | |
+| VW1 − E4 | +0.23 | −0.03 | −0.02 | | |
+
+### Bảng 2×2 đã đủ (seed 2022, best / cuối / TB10)
+| | Trọng số cố định | Trọng số dao động (0.5/0.6 trên mẫu) |
+|---|---|---|
+| Không phân biệt view | E4 72.11/71.84/71.92 · J1 71.51/71.24/71.24 | J2 72.39/72.02/72.14 |
+| Có phân biệt view | **VW1 72.34/71.81/71.90** | VS1 72.55/72.22/72.37 · F1b 72.60/72.28/72.43 |
+
+### Diễn giải (theo tiêu chí ghi trước; ưu tiên cuối và TB10)
+- Cuối 71.81 ≤ E4 + 0.2 (72.04) và TB10 71.90 ≤ E4 + 0.2 (72.12) → **rơi vào nhánh H3**: chỉ phân bổ KD theo view (đúng trung bình
+  của F1b) **không** tái tạo được lợi ích của F1b; VW1 ≈ E4 ở cuối/TB10 (chỉ best +0.23).
+- Ghép với VS1 ≈ F1b: lợi ích của F1b không đến từ việc biết teacher đúng ở mẫu strong nào (VS1), cũng không đến từ mức KD trung bình
+  khác nhau giữa view (VW1). Thứ còn lại chung cho F1b, VS1 và J2 là **trọng số dao động giữa các mẫu trong batch** (0.5/0.6).
+- Mẫu hình 2×2 (cuối/TB10): mọi run trọng số **cố định** (E4, J1, VW1) ở 71.2–71.9; mọi run trọng số **dao động** (J2, VS1, F1b) ở
+  72.0–72.4. Phân biệt view chỉ thêm ~0.2 khi đã có dao động (VS1 so J2), và ≈ 0 khi không có dao động (VW1 so E4).
+- **Kết luận thăm dò:** nghiêng mạnh về **H3 — dao động trọng số CE/KD giữa các mẫu hoạt động như một bộ điều chuẩn**; H2 (view) đơn lẻ
+  không được ủng hộ.
+
+### Giới hạn
+1. Một seed (2022); nhiễu giữa run tới ~0.4 — chênh VW1 − F1b ở cuối/TB10 (~0.5) vượt mức này, nhưng các so sánh khác (VS1 − J2 ~0.2) thì không.
+2. J1 (hằng 0.538) kém E4 0.6 vẫn chưa giải thích; nếu cả E4 lẫn J1 là "cố định" thì J1 thấp bất thường.
+3. "Dao động" ở đây là trọng số nhị phân 0.5/0.6 với tỷ lệ ~69/31 (theo teacher đúng) hoặc hoán vị của nó; chưa biết phân phối khác
+   (ví dụ ngẫu nhiên thuần, không liên quan teacher) có cho hiệu ứng tương tự không.
+4. Phép thử trực tiếp H3 (chưa chạy, cần người dùng quyết định): trọng số ngẫu nhiên thuần, độc lập teacher, cùng trung bình/phương sai
+  với F1b (ví dụ w ~ Bernoulli: 0.6 với xác suất 0.69, 0.5 còn lại, rút mới mỗi batch); và/hoặc thêm seed 2021 cho VW1/VS1.
