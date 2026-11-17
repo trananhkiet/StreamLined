@@ -831,3 +831,4 @@ Mục tiêu: phân biệt H1 (F1b tốt nhờ biết teacher đúng ở *mẫu* 
 ### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-17 17:58 UTC (VW1: trọng số KD cố định theo view, seed 2022)
 - Kế hoạch + bảng 2×2 (view × dao động) + tiêu chí: `kaggle/experiments/2026-11-17_vw1_view_fixed_kd.md`. Code `SAMPLE_WEIGHT_MODE=view_fixed` (`SW_VIEW_WEAK=0.598`, `SW_VIEW_STRONG=0.540`, mặc định tắt), test `kaggle/test_vw1_view_fixed.py` PASS.
 - Người dùng yêu cầu 2 lịch một lần: **submit 18:01 UTC** (tài khoản 2, notebook `kaggle/experiments/vw1_view_fixed_kd_seed2022.ipynb`) và **kiểm tra kết quả 23:56 UTC**.
+- Lịch: `trig_01BJU2FCqkxwHhq6DuYKyEZQ` "VW1 submit (one-shot)" 18:01 UTC (kiểm notebook/metadata, chạy lại test VW1, chống trùng, quota ≥ 6h rồi mới push); `trig_013frdFLzKGiNKj6fQi4dtz7` "VW1 check results (one-shot)" 23:56 UTC (thu kết quả, điền bảng 2×2, cập nhật báo cáo/HANDOFF, push; nếu chưa xong thì báo và hỏi người dùng, không tự tạo lịch mới).
