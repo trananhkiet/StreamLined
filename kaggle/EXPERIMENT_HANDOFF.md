@@ -822,3 +822,8 @@ Mục tiêu: phân biệt H1 (F1b tốt nhờ biết teacher đúng ở *mẫu* 
 - 2026-11-17 04:01 UTC: người dùng đã chuyển Kaggle MCP sang **tài khoản 2** (MCP đọc được notebook private VS1 = RUNNING; quota MCP 464s/108000s khớp tài khoản 2). CLI với `KAGGLE_KEY2` vẫn dùng được như cũ.
 - 2026-11-17 04:03 UTC: theo yêu cầu người dùng, bỏ hai lần monitor 04:54 và 06:54; lịch `trig_01WMynFbUWzk4ziRYDYfhKPe` giờ chỉ chạy **08:54 và 10:54 UTC** (cron `54 8,10 * * *`). Tự tắt khi VS1 COMPLETE/ERROR; nếu 10:54 vẫn chưa xong thì lần kế là 08:54 UTC hôm sau.
 - **Monitor 08:54 UTC:** VS1 **RUNNING** (~5h kể từ submit 03:53; F1b s2022 mất 4,91h nên sắp xong). Quota tài khoản 2: 5,02h/30h. Lần monitor cuối theo lịch: 10:54 UTC.
+
+### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-17 10:56 UTC (VS1 COMPLETE, scheduler đã tắt)
+- **VS1 (View-Stratified Shuffled F1b, seed 2022, tài khoản 2)** = best **72.55** (ep 297) / cuối **72.22** / TB10 **72.37**, train 66.54, top-5 93.21, runtime ~5,03h. So F1b s2022 (72.60/72.28/72.43): **−0.05/−0.06/−0.06**; so E4 s2022 (72.11/71.84/71.92): **+0.44/+0.38/+0.45**. Thống kê log hợp lệ (weak 50%, Tacc 97.9/40.5, w 0.598/0.540, same 74.7%, trust_on_correct 81.7% ≈ ngẫu nhiên). Chi tiết: `kaggle/experiments/2026-11-17_vs1_view_shuffled_f1b.md`.
+- **Kết luận (1 seed):** nghiêng về **H2** — lợi ích F1b chủ yếu do phân bổ KD theo view (weak ≈0.598, strong ≈0.540), không do biết teacher đúng ở từng mẫu strong. Cần thêm seed để xác nhận (chưa chạy).
+- Lịch `trig_01WMynFbUWzk4ziRYDYfhKPe` đã tắt. Không có run nào đang chạy. Quota tài khoản 2: 5,04h/30h (còn ~24,96h; refresh 2026-11-21 00:00 UTC). Kaggle MCP đang gắn tài khoản 2.

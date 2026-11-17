@@ -84,5 +84,42 @@ Trọng số không đổi sau hoán vị: 74.7% mẫu.
 | F1b | 72.60 | 72.28 | 72.43 |
 | VS1 | TBD | TBD | TBD |
 
-## Kết quả
-(điền khi run xong)
+## Kết quả — VS1 COMPLETE (đọc 2026-11-17 10:54 UTC)
+Kaggle `kitit5512trn/streamlined-kd-cifar100-vs1-seed2022` v1 (tài khoản 2), 300 epoch, teacher mdistiller 72.41/92.50,
+runtime 18.093 s (~5,03h; F1b 4,91h). Log lấy bằng `kaggle kernels logs` (đủ 300 dòng epoch).
+
+| Run (seed 2022) | Best | Cuối | TB 10 cuối | Train top-1 cuối | Best top-5 |
+|---|---:|---:|---:|---:|---:|
+| E4 | 72.11 | 71.84 | 71.92 | 67.12 | — |
+| F1b | 72.60 | 72.28 | 72.43 | 66.91 | — |
+| **VS1** | **72.55** (ep 297) | **72.22** | **72.37** | 66.54 | 93.21 |
+| VS1 − F1b | −0.05 | −0.06 | −0.06 | −0.37 | |
+| VS1 − E4 | +0.44 | +0.38 | +0.45 | −0.58 | |
+
+### Thống kê VS1 trong log (300 epoch; xác nhận run hợp lệ)
+| Chỉ số | TB (min–max) | Kỳ vọng |
+|---|---|---|
+| Tỷ lệ mẫu weak | 50.0% (50.0–50.0) | 50% |
+| Teacher đúng: weak / strong | 97.88% / 40.46% | ≈97.8 / 40 |
+| Trọng số KD TB: weak / strong | 0.5979 / 0.5405 | 0.598 / 0.540 |
+| Trọng số không đổi sau hoán vị | 74.7% (74.4–75.1) | ≈75% |
+| P(teacher đúng \| mẫu nhận 0.6) | 81.7% (81.5–82.0) | ngẫu nhiên trong view ≈ 81.1%; F1b = 100% |
+| Batch có view < 2 mẫu | 0 | — |
+
+### Phân tích H1/H2 (theo tiêu chí ghi trước; ưu tiên cuối và TB10)
+- **VS1 ≈ F1b** (chênh −0.06 ở cuối và TB10, −0.05 ở best; < 0.2 và nhỏ hơn nhiều so với nhiễu ~0.4) → theo tiêu chí ghi trước:
+  **nghiêng về H2** — việc biết chính xác mẫu strong nào teacher đúng (F1b: 100% → VS1: ~41% ở view strong) **không** tạo khác biệt
+  đo được. Phần lớn lợi ích của F1b được giải thích bởi **phân bổ KD theo view** (weak ≈ 0.598, strong ≈ 0.540) và/hoặc tính
+  ngẫu nhiên của trọng số.
+- **VS1 vẫn hơn E4 ~+0.4** (cả best, cuối, TB10) → giữ phân bổ trọng số theo view có thể có ích, nhưng một seed chưa chứng minh nguyên nhân.
+- Giới hạn quan trọng:
+  1. Một seed (2022); nhiễu giữa run tới ~0.4.
+  2. VS1 chỉ thực sự xáo ở view strong; ở view weak teacher đúng 98% nên F1b ≈ "0.6 cho hầu hết mẫu weak" — thông tin mức mẫu ở weak gần như không có gì để kiểm tra.
+  3. VS1 bỏ liên kết CE↔mẫu teacher sai (CE thấp hơn ~5% theo preflight); kết quả vẫn ≈ F1b nên yếu tố này cũng không quan trọng ở đây.
+- Đối chiếu kết quả cũ (không chạy thêm gì): J2 (xáo trọng số trên **toàn batch**, bỏ qua view) seed 2022 = 72.39/72.02/72.14;
+  J1 (trọng số hằng 0.5384 cho mọi mẫu) = 71.51/71.24/71.24. VS1 (xáo **trong view**) = 72.55/72.22/72.37 cao hơn J2 ~0.2 ở cuối/TB10.
+  Gợi ý (chưa kết luận, cùng seed, chênh nhỏ): giữ cấu trúc theo view giúp thêm một ít so với xáo toàn batch; còn J1 kém rõ vẫn chưa giải thích.
+
+### Kết luận
+F1b có vẻ cải thiện chủ yếu nhờ **mức KD khác nhau giữa view weak/strong** (H2), không nhờ biết teacher đúng ở từng mẫu strong (H1 không được
+ủng hộ ở seed 2022). Cần thêm seed (ví dụ VS1 seed 2021, so với F1b s2021 72.27/72.10/72.01) để xác nhận — chưa chạy, chờ người dùng quyết định.
