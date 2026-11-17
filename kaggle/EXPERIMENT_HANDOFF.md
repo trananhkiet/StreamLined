@@ -821,3 +821,4 @@ Mục tiêu: phân biệt H1 (F1b tốt nhờ biết teacher đúng ở *mẫu* 
 - Lịch `trig_01WMynFbUWzk4ziRYDYfhKPe` "VS1 monitor (every 2h)": 04:54, 06:54, 08:54, 10:54 UTC…; khi COMPLETE tự tổng hợp, so E4/F1b, điền báo cáo, cập nhật HANDOFF, commit/push và tự tắt; ERROR → báo cáo và tắt, không submit lại.
 - 2026-11-17 04:01 UTC: người dùng đã chuyển Kaggle MCP sang **tài khoản 2** (MCP đọc được notebook private VS1 = RUNNING; quota MCP 464s/108000s khớp tài khoản 2). CLI với `KAGGLE_KEY2` vẫn dùng được như cũ.
 - 2026-11-17 04:03 UTC: theo yêu cầu người dùng, bỏ hai lần monitor 04:54 và 06:54; lịch `trig_01WMynFbUWzk4ziRYDYfhKPe` giờ chỉ chạy **08:54 và 10:54 UTC** (cron `54 8,10 * * *`). Tự tắt khi VS1 COMPLETE/ERROR; nếu 10:54 vẫn chưa xong thì lần kế là 08:54 UTC hôm sau.
+- **Monitor 08:54 UTC:** VS1 **RUNNING** (~5h kể từ submit 03:53; F1b s2022 mất 4,91h nên sắp xong). Quota tài khoản 2: 5,02h/30h. Lần monitor cuối theo lịch: 10:54 UTC.
