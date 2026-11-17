@@ -373,6 +373,21 @@ class CrossViewCIFAR(torch.utils.data.Dataset):
         return x, target, x_teacher, index, self.is_strong
 
 
+class ViewTagged(torch.utils.data.Dataset):
+    """VS1: returns (*dataset[i], view_id). The wrapped dataset is called exactly as before (same transforms, same RNG draws);
+    view_id = 0 for the weak set and 1 for the strong set of the ConcatDataset."""
+
+    def __init__(self, dataset, view_id: int):
+        self.dataset, self.view_id = dataset, view_id
+
+    def __len__(self) -> int:
+        return len(self.dataset)
+
+    def __getitem__(self, index: int):
+        image, target = self.dataset[index]
+        return image, target, self.view_id
+
+
 def make_loaders() -> tuple[DataLoader, DataLoader]:
     prepare_cifar100()
     normalize = transforms.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761))
@@ -392,6 +407,8 @@ def make_loaders() -> tuple[DataLoader, DataLoader]:
     else:
         weak_set = torchvision.datasets.CIFAR100(DATA_DIR, train=True, download=False, transform=weak)
         strong_set = torchvision.datasets.CIFAR100(DATA_DIR, train=True, download=False, transform=strong)
+        if CFG.sample_weight_mode == "teacher_correct_view_shuffled":
+            weak_set, strong_set = ViewTagged(weak_set, 0), ViewTagged(strong_set, 1)
     test_set = torchvision.datasets.CIFAR100(DATA_DIR, train=False, download=False, transform=test_transform)
     generator = torch.Generator().manual_seed(CFG.seed)
     train_loader = DataLoader(
@@ -610,7 +627,28 @@ def shuffle_within_batch(weights: torch.Tensor) -> torch.Tensor:
     return weights[perm]
 
 
-def teacher_correct_weights(teacher_logits: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+VIEW_SHUFFLE_GENERATOR: dict[str, torch.Generator] = {}
+VIEW_STATS = {k: 0.0 for k in ("n0", "n1", "c0", "c1", "w0", "w1", "same", "trust", "trust_on_correct", "batches_skipped")}
+
+
+def view_stratified_shuffle(weights: torch.Tensor, view_ids: torch.Tensor) -> torch.Tensor:
+    """VS1: permute the per-sample weights ONLY among samples of the same view present in this batch (dedicated CPU
+    generator, so the global RNG, data order and augmentation are identical to F1b). Views with < 2 samples are untouched.
+    The multiset of weights of each view in the batch is preserved exactly."""
+    if "g" not in VIEW_SHUFFLE_GENERATOR:
+        VIEW_SHUFFLE_GENERATOR["g"] = torch.Generator().manual_seed(CFG.seed + 54321)
+    out = weights.clone()
+    for view in (0, 1):
+        idx = torch.nonzero(view_ids == view, as_tuple=False).flatten()
+        if idx.numel() < 2:
+            VIEW_STATS["batches_skipped"] += 1.0
+            continue
+        perm = torch.randperm(idx.numel(), generator=VIEW_SHUFFLE_GENERATOR["g"]).to(idx.device)
+        out[idx] = weights[idx[perm]]
+    return out
+
+
+def teacher_correct_weights(teacher_logits: torch.Tensor, labels: torch.Tensor, view_ids: torch.Tensor | None = None) -> torch.Tensor:
     teacher_logits = teacher_logits.detach()
     correct = teacher_logits.argmax(dim=1).eq(labels)
     SAMPLE_WEIGHT_STATS["correct"] += correct.sum().item()
@@ -624,6 +662,21 @@ def teacher_correct_weights(teacher_logits: torch.Tensor, labels: torch.Tensor) 
     if CFG.sample_weight_mode == "teacher_correct_shuffled":
         shuffled = shuffle_within_batch(weights)
         SAMPLE_WEIGHT_STATS["shuffle_same"] += shuffled.eq(weights).sum().item()
+        weights = shuffled
+    elif CFG.sample_weight_mode == "teacher_correct_view_shuffled":
+        if view_ids is None:
+            raise ValueError("SAMPLE_WEIGHT_MODE=teacher_correct_view_shuffled needs per-sample view ids from the loader")
+        view_ids = view_ids.to(weights.device)
+        shuffled = view_stratified_shuffle(weights, view_ids)
+        trust = shuffled.eq(CFG.sw_trust)
+        for view in (0, 1):
+            in_view = view_ids == view
+            VIEW_STATS[f"n{view}"] += in_view.sum().item()
+            VIEW_STATS[f"c{view}"] += (correct & in_view).sum().item()
+            VIEW_STATS[f"w{view}"] += shuffled[in_view].sum().item()
+        VIEW_STATS["same"] += shuffled.eq(weights).sum().item()
+        VIEW_STATS["trust"] += trust.sum().item()
+        VIEW_STATS["trust_on_correct"] += (trust & correct).sum().item()
         weights = shuffled
     return weights
 
@@ -677,6 +730,18 @@ def pop_sample_weight_stats() -> dict[str, float]:
         stats["teacher_p_label_mean"] = SAMPLE_WEIGHT_STATS["p_label_sum"] / total
     if CFG.sample_weight_mode == "teacher_correct_shuffled":
         stats["sw_shuffle_same_pct"] = 100.0 * SAMPLE_WEIGHT_STATS["shuffle_same"] / total
+    if CFG.sample_weight_mode == "teacher_correct_view_shuffled":
+        n0, n1 = max(VIEW_STATS["n0"], 1.0), max(VIEW_STATS["n1"], 1.0)
+        stats.update({
+            "vs_weak_pct": 100.0 * VIEW_STATS["n0"] / total,
+            "vs_tacc_weak": 100.0 * VIEW_STATS["c0"] / n0, "vs_tacc_strong": 100.0 * VIEW_STATS["c1"] / n1,
+            "vs_w_weak": VIEW_STATS["w0"] / n0, "vs_w_strong": VIEW_STATS["w1"] / n1,
+            "vs_same_pct": 100.0 * VIEW_STATS["same"] / total,
+            "vs_trust_on_correct_pct": 100.0 * VIEW_STATS["trust_on_correct"] / max(VIEW_STATS["trust"], 1.0),
+            "vs_view_skips": VIEW_STATS["batches_skipped"],
+        })
+        for key in VIEW_STATS:
+            VIEW_STATS[key] = 0.0
     stats.update(extra)
     for key in SAMPLE_WEIGHT_STATS:
         SAMPLE_WEIGHT_STATS[key] = 0.0
@@ -684,7 +749,8 @@ def pop_sample_weight_stats() -> dict[str, float]:
 
 
 def distillation_losses(
-    student_logits: torch.Tensor, teacher_logits: torch.Tensor, labels: torch.Tensor, kd_teacher_logits: torch.Tensor | None = None
+    student_logits: torch.Tensor, teacher_logits: torch.Tensor, labels: torch.Tensor, kd_teacher_logits: torch.Tensor | None = None,
+    view_ids: torch.Tensor | None = None,
 ) -> dict[str, torch.Tensor]:
     if kd_teacher_logits is not None and (CFG.loss_mode != "skd" or CFG.sample_weight_mode != "none" or CFG.late_kd_start):
         raise ValueError("CROSS_VIEW_KD is defined only on the plain E4 SKD loss (LOSS_MODE=skd, SAMPLE_WEIGHT_MODE=none)")
@@ -692,10 +758,10 @@ def distillation_losses(
     if CFG.loss_mode == "dkd":
         warmup = min(CURRENT_EPOCH["value"] / max(CFG.dkd_warmup, 1), 1.0)
         return {"ce": CFG.dkd_ce_weight * raw["ce"], "kd": warmup * raw["kd"], "bc": 0.0 * raw["bc"]}
-    if CFG.sample_weight_mode in ("teacher_correct", "teacher_prob", "teacher_correct_shuffled"):
+    if CFG.sample_weight_mode in ("teacher_correct", "teacher_prob", "teacher_correct_shuffled", "teacher_correct_view_shuffled"):
         if CFG.kd_mask_mode != "scalar":
             raise ValueError("SAMPLE_WEIGHT_MODE is defined on top of KD_MASK_MODE=scalar")
-        weights = teacher_correct_weights(teacher_logits, labels)
+        weights = teacher_correct_weights(teacher_logits, labels, view_ids)
         bc_scale = 1.0
         if CFG.late_kd_start and CURRENT_EPOCH["value"] >= CFG.late_kd_start and CFG.late_kd_scale != 1.0:
             weights = weights * CFG.late_kd_scale
@@ -925,8 +991,11 @@ def train_one_epoch(student: nn.Module, teacher: nn.Module, loader: DataLoader, 
     for batch_index, batch in enumerate(progress):
         if CFG.limit_train_batches and batch_index >= CFG.limit_train_batches:
             break
+        view_ids = None
         if CFG.cross_view_kd:
             images, labels, teacher_kd_images, _, is_strong = batch
+        elif CFG.sample_weight_mode == "teacher_correct_view_shuffled":
+            images, labels, view_ids = batch
         else:
             images, labels = batch
         images = images.to(DEVICE, non_blocking=True)
@@ -952,7 +1021,7 @@ def train_one_epoch(student: nn.Module, teacher: nn.Module, loader: DataLoader, 
                 CV_STATS["strong"] += strong.sum().item()
                 CV_STATS["total"] += float(labels.numel())
         student_logits = student(images)
-        losses = distillation_losses(student_logits, teacher_logits, labels, kd_teacher_logits=kd_teacher_logits)
+        losses = distillation_losses(student_logits, teacher_logits, labels, kd_teacher_logits=kd_teacher_logits, view_ids=view_ids)
         if CFG.grad_log_every and batch_index % CFG.grad_log_every == 0:
             probe_last_layer_grads(student, student_logits, teacher_logits, labels, kd_teacher_logits=kd_teacher_logits)
         loss = sum(losses.values())
@@ -1143,6 +1212,7 @@ def run_experiment() -> dict[str, object]:
             + (f" | sw_same={row['sw_shuffle_same_pct']:.2f}%" if "sw_shuffle_same_pct" in row else "")
             + (f" | wrong={row['wrong_pct']:.2f}% tckd_removed={row['wrong_kd_removed_share_pct']:.1f}%" if "wrong_kd_removed_share_pct" in row else "")
             + (f" | gram_wrong={row['gram_teacher_wrong_pct']:.2f}% W[{row['gram_w_min_mean']:.3f},{row['gram_w_max_mean']:.3f}]" if "gram_teacher_wrong_pct" in row else "")
+            + (f" | vs weak={row['vs_weak_pct']:.1f}% Tacc w/s={row['vs_tacc_weak']:.2f}/{row['vs_tacc_strong']:.2f} w w/s={row['vs_w_weak']:.4f}/{row['vs_w_strong']:.4f} same={row['vs_same_pct']:.1f}% trust_on_correct={row['vs_trust_on_correct_pct']:.1f}% skips={row['vs_view_skips']:.0f}" if "vs_weak_pct" in row else "")
             + (f" | cv strong={row['cv_strong_pct']:.1f}% Tweak_acc={row['cv_tweak_acc_on_strong']:.2f} Tstrong_acc={row['cv_tstrong_acc_on_strong']:.2f} target_fixed={row['cv_target_changed_pct']:.2f}%" if "cv_strong_pct" in row else "")
             + (f" | gradnorm ce/kd/bc={row['gradnorm_ce']:.3f}/{row['gradnorm_kd']:.3f}/{row['gradnorm_bc']:.4f}" if "gradnorm_bc" in row else "")
         )
