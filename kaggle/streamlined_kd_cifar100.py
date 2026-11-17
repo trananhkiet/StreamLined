@@ -115,6 +115,10 @@ class Config:
     # Cross-view KD (CV1): for STRONG-view samples the KD target is teacher(independent weak view of the SAME original
     # image) instead of teacher(strong view). Student inputs, CE, BC, the scalar KD mask and batch order are unchanged.
     cross_view_kd: bool = os.getenv("CROSS_VIEW_KD", "0") == "1"
+    # VW1 (SAMPLE_WEIGHT_MODE=view_fixed): deterministic per-VIEW KD weight (CE gets 1 - w), no per-sample teacher information.
+    # Defaults = F1b's measured per-view means (weak 0.598, strong 0.540).
+    sw_view_weak: float = float(os.getenv("SW_VIEW_WEAK", "0.598"))
+    sw_view_strong: float = float(os.getenv("SW_VIEW_STRONG", "0.540"))
 
     @property
     def bc_weight(self) -> float:
@@ -407,7 +411,7 @@ def make_loaders() -> tuple[DataLoader, DataLoader]:
     else:
         weak_set = torchvision.datasets.CIFAR100(DATA_DIR, train=True, download=False, transform=weak)
         strong_set = torchvision.datasets.CIFAR100(DATA_DIR, train=True, download=False, transform=strong)
-        if CFG.sample_weight_mode == "teacher_correct_view_shuffled":
+        if CFG.sample_weight_mode in ("teacher_correct_view_shuffled", "view_fixed"):
             weak_set, strong_set = ViewTagged(weak_set, 0), ViewTagged(strong_set, 1)
     test_set = torchvision.datasets.CIFAR100(DATA_DIR, train=False, download=False, transform=test_transform)
     generator = torch.Generator().manual_seed(CFG.seed)
@@ -657,6 +661,18 @@ def teacher_correct_weights(teacher_logits: torch.Tensor, labels: torch.Tensor, 
         p_label = F.softmax(teacher_logits, dim=1).gather(1, labels.view(-1, 1)).squeeze(1)
         SAMPLE_WEIGHT_STATS["p_label_sum"] += p_label.sum().item()
         return (CFG.sw_distrust + (CFG.sw_trust - CFG.sw_distrust) * p_label).detach()
+    if CFG.sample_weight_mode == "view_fixed":
+        if view_ids is None:
+            raise ValueError("SAMPLE_WEIGHT_MODE=view_fixed needs per-sample view ids from the loader")
+        view_ids = view_ids.to(teacher_logits.device)
+        weak_w = torch.full_like(teacher_logits[:, 0], CFG.sw_view_weak)
+        weights = torch.where(view_ids == 0, weak_w, torch.full_like(weak_w, CFG.sw_view_strong)).detach()
+        for view in (0, 1):
+            in_view = view_ids == view
+            VIEW_STATS[f"n{view}"] += in_view.sum().item()
+            VIEW_STATS[f"c{view}"] += (correct & in_view).sum().item()
+            VIEW_STATS[f"w{view}"] += weights[in_view].sum().item()
+        return weights
     trust = torch.full_like(teacher_logits[:, 0], CFG.sw_trust)
     weights = torch.where(correct, trust, torch.full_like(trust, CFG.sw_distrust)).detach()
     if CFG.sample_weight_mode == "teacher_correct_shuffled":
@@ -730,7 +746,7 @@ def pop_sample_weight_stats() -> dict[str, float]:
         stats["teacher_p_label_mean"] = SAMPLE_WEIGHT_STATS["p_label_sum"] / total
     if CFG.sample_weight_mode == "teacher_correct_shuffled":
         stats["sw_shuffle_same_pct"] = 100.0 * SAMPLE_WEIGHT_STATS["shuffle_same"] / total
-    if CFG.sample_weight_mode == "teacher_correct_view_shuffled":
+    if CFG.sample_weight_mode in ("teacher_correct_view_shuffled", "view_fixed"):
         n0, n1 = max(VIEW_STATS["n0"], 1.0), max(VIEW_STATS["n1"], 1.0)
         stats.update({
             "vs_weak_pct": 100.0 * VIEW_STATS["n0"] / total,
@@ -758,7 +774,7 @@ def distillation_losses(
     if CFG.loss_mode == "dkd":
         warmup = min(CURRENT_EPOCH["value"] / max(CFG.dkd_warmup, 1), 1.0)
         return {"ce": CFG.dkd_ce_weight * raw["ce"], "kd": warmup * raw["kd"], "bc": 0.0 * raw["bc"]}
-    if CFG.sample_weight_mode in ("teacher_correct", "teacher_prob", "teacher_correct_shuffled", "teacher_correct_view_shuffled"):
+    if CFG.sample_weight_mode in ("teacher_correct", "teacher_prob", "teacher_correct_shuffled", "teacher_correct_view_shuffled", "view_fixed"):
         if CFG.kd_mask_mode != "scalar":
             raise ValueError("SAMPLE_WEIGHT_MODE is defined on top of KD_MASK_MODE=scalar")
         weights = teacher_correct_weights(teacher_logits, labels, view_ids)
@@ -994,7 +1010,7 @@ def train_one_epoch(student: nn.Module, teacher: nn.Module, loader: DataLoader, 
         view_ids = None
         if CFG.cross_view_kd:
             images, labels, teacher_kd_images, _, is_strong = batch
-        elif CFG.sample_weight_mode == "teacher_correct_view_shuffled":
+        elif CFG.sample_weight_mode in ("teacher_correct_view_shuffled", "view_fixed"):
             images, labels, view_ids = batch
         else:
             images, labels = batch

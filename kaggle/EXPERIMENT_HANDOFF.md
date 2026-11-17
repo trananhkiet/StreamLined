@@ -827,3 +827,7 @@ Mục tiêu: phân biệt H1 (F1b tốt nhờ biết teacher đúng ở *mẫu* 
 - **VS1 (View-Stratified Shuffled F1b, seed 2022, tài khoản 2)** = best **72.55** (ep 297) / cuối **72.22** / TB10 **72.37**, train 66.54, top-5 93.21, runtime ~5,03h. So F1b s2022 (72.60/72.28/72.43): **−0.05/−0.06/−0.06**; so E4 s2022 (72.11/71.84/71.92): **+0.44/+0.38/+0.45**. Thống kê log hợp lệ (weak 50%, Tacc 97.9/40.5, w 0.598/0.540, same 74.7%, trust_on_correct 81.7% ≈ ngẫu nhiên). Chi tiết: `kaggle/experiments/2026-11-17_vs1_view_shuffled_f1b.md`.
 - **Kết luận (1 seed):** nghiêng về **H2** — lợi ích F1b chủ yếu do phân bổ KD theo view (weak ≈0.598, strong ≈0.540), không do biết teacher đúng ở từng mẫu strong. Cần thêm seed để xác nhận (chưa chạy).
 - Lịch `trig_01WMynFbUWzk4ziRYDYfhKPe` đã tắt. Không có run nào đang chạy. Quota tài khoản 2: 5,04h/30h (còn ~24,96h; refresh 2026-11-21 00:00 UTC). Kaggle MCP đang gắn tài khoản 2.
+
+### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-17 17:58 UTC (VW1: trọng số KD cố định theo view, seed 2022)
+- Kế hoạch + bảng 2×2 (view × dao động) + tiêu chí: `kaggle/experiments/2026-11-17_vw1_view_fixed_kd.md`. Code `SAMPLE_WEIGHT_MODE=view_fixed` (`SW_VIEW_WEAK=0.598`, `SW_VIEW_STRONG=0.540`, mặc định tắt), test `kaggle/test_vw1_view_fixed.py` PASS.
+- Người dùng yêu cầu 2 lịch một lần: **submit 18:01 UTC** (tài khoản 2, notebook `kaggle/experiments/vw1_view_fixed_kd_seed2022.ipynb`) và **kiểm tra kết quả 23:56 UTC**.
