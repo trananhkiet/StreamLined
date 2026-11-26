@@ -846,3 +846,7 @@ Mục tiêu: phân biệt H1 (F1b tốt nhờ biết teacher đúng ở *mẫu* 
 - Hai run song song seed 2022: **E4** trên tài khoản 1 (đối chứng cùng cặp) và **F1b** trên tài khoản 2. Quota 2026-11-26: cả 3 tài khoản 0/30h (refresh 2026-11-28).
 - Lịch: submit 08:36 UTC; kiểm tra 18:36 UTC.
 - Lịch: `trig_01APxNkyLQHZ7GZR6RjqNbuS` "R110-R32 submit E4+F1b (one-shot)" 08:36 UTC (preflight: notebook/metadata, test kiến trúc PASS, chống trùng, quota ≥10h mỗi tài khoản); `trig_01N1VoRdJtkdSuxP31pj7PVT` "R110-R32 check results (one-shot)" 18:36 UTC (nếu chưa xong thì báo và hỏi người dùng).
+- **R110→R32 ĐÃ SUBMIT** 2026-11-26 08:38 UTC (lịch `trig_01APxNkyLQHZ7GZR6RjqNbuS`, người dùng xác nhận "cứ submit"), version 1, notebook từ commit `01e9272`; 08:42 UTC cả hai **RUNNING**:
+  - E4: https://www.kaggle.com/code/trananhkiet/streamlined-kd-cifar100-r110r32-e4-seed2022 (tài khoản 1)
+  - F1b: https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-r110r32-f1b-seed2022 (tài khoản 2)
+  Preflight: notebook/metadata đúng, test kiến trúc PASS, slug chưa tồn tại, quota tài khoản 1 và 2 = 0/30h. Kiểm tra teacher: mdistiller R110 lưu 74.31% = số paper; teacher R110 do SKD phát hành có trọng số khác hoàn toàn (chi tiết trong file kế hoạch). Lịch kiểm tra kết quả 18:36 UTC (`trig_01N1VoRdJtkdSuxP31pj7PVT`).
