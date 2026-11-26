@@ -839,3 +839,9 @@ Mục tiêu: phân biệt H1 (F1b tốt nhờ biết teacher đúng ở *mẫu* 
 - **Kết luận (1 seed):** theo tiêu chí ghi trước → **H3**: chỉ phân bổ KD theo view không tái tạo được F1b; cùng với VS1 ≈ F1b, lợi ích F1b có vẻ đến từ **trọng số CE/KD dao động giữa các mẫu** (E4/J1/VW1 cố định: 71.2–71.9 ở cuối/TB10; J2/VS1/F1b dao động: 72.0–72.4).
 - Hai lịch VW1 (`trig_01BJU2FCqkxwHhq6DuYKyEZQ`, `trig_013frdFLzKGiNKj6fQi4dtz7`) là một lần và đã chạy xong. Không có run nào đang chạy. Quota tài khoản 2: 9,94h/30h (còn ~20,06h; refresh 2026-11-21 00:00 UTC). Kaggle MCP gắn tài khoản 2.
 - Bước tiếp theo đề xuất (chưa chạy): trọng số ngẫu nhiên thuần độc lập teacher (cùng trung bình/phương sai F1b) để kiểm H3 trực tiếp; thêm seed 2021.
+
+### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-26 08:31 UTC (F1b trên cặp ResNet110 → ResNet32)
+- Người dùng yêu cầu train cấu hình tốt nhất (F1b) trên một cặp khác của paper. Chọn **ResNet110 → ResNet32** (paper: teacher 74.31, SKD 74.84). Kế hoạch + tiêu chí: `kaggle/experiments/2026-11-26_r110_r32_f1b.md`.
+- Code: `TEACHER_ARCH`/`STUDENT_ARCH` (mặc định resnet56/resnet20, bit-exact), teacher mdistiller ResNet110 SHA-256 `75dc04fa…41a9` (acc 74.31), ngưỡng tự dừng 74.0%. Test `kaggle/test_arch_r110_r32.py` PASS.
+- Hai run song song seed 2022: **E4** trên tài khoản 1 (đối chứng cùng cặp) và **F1b** trên tài khoản 2. Quota 2026-11-26: cả 3 tài khoản 0/30h (refresh 2026-11-28).
+- Lịch: submit 08:36 UTC; kiểm tra 18:36 UTC.
