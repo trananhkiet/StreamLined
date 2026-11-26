@@ -850,3 +850,7 @@ Mục tiêu: phân biệt H1 (F1b tốt nhờ biết teacher đúng ở *mẫu* 
   - E4: https://www.kaggle.com/code/trananhkiet/streamlined-kd-cifar100-r110r32-e4-seed2022 (tài khoản 1)
   - F1b: https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-r110r32-f1b-seed2022 (tài khoản 2)
   Preflight: notebook/metadata đúng, test kiến trúc PASS, slug chưa tồn tại, quota tài khoản 1 và 2 = 0/30h. Kiểm tra teacher: mdistiller R110 lưu 74.31% = số paper; teacher R110 do SKD phát hành có trọng số khác hoàn toàn (chi tiết trong file kế hoạch). Lịch kiểm tra kết quả 18:36 UTC (`trig_01N1VoRdJtkdSuxP31pj7PVT`).
+
+### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-26 18:40 UTC (R110→R32 COMPLETE; không còn lịch/run nào)
+- **ResNet110 → ResNet32, seed 2022** (teacher mdistiller 74.31 = paper): **E4** = 74.71 / 74.57 / 74.51 (best/cuối/TB10), **F1b** = 74.70 / 74.40 / 74.47. **F1b − E4 = −0.01 / −0.17 / −0.04** → theo tiêu chí ghi trước: không thấy tác dụng của F1b ở cặp này (khác R56→R20: +0.33/+0.42/+0.39). E4 sát paper SKD 74.84 (−0.13). Chi tiết: `kaggle/experiments/2026-11-26_r110_r32_f1b.md`.
+- Hai lịch một lần R110→R32 đã chạy xong. Không có run nào đang chạy. Quota: tài khoản 1 6,44h/30h, tài khoản 2 6,52h/30h, tài khoản 3 0/30h (refresh 2026-11-28 00:00 UTC). Kaggle MCP gắn tài khoản 2.
