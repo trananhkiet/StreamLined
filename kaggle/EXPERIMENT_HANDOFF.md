@@ -845,3 +845,4 @@ Mục tiêu: phân biệt H1 (F1b tốt nhờ biết teacher đúng ở *mẫu* 
 - Code: `TEACHER_ARCH`/`STUDENT_ARCH` (mặc định resnet56/resnet20, bit-exact), teacher mdistiller ResNet110 SHA-256 `75dc04fa…41a9` (acc 74.31), ngưỡng tự dừng 74.0%. Test `kaggle/test_arch_r110_r32.py` PASS.
 - Hai run song song seed 2022: **E4** trên tài khoản 1 (đối chứng cùng cặp) và **F1b** trên tài khoản 2. Quota 2026-11-26: cả 3 tài khoản 0/30h (refresh 2026-11-28).
 - Lịch: submit 08:36 UTC; kiểm tra 18:36 UTC.
+- Lịch: `trig_01APxNkyLQHZ7GZR6RjqNbuS` "R110-R32 submit E4+F1b (one-shot)" 08:36 UTC (preflight: notebook/metadata, test kiến trúc PASS, chống trùng, quota ≥10h mỗi tài khoản); `trig_01N1VoRdJtkdSuxP31pj7PVT` "R110-R32 check results (one-shot)" 18:36 UTC (nếu chưa xong thì báo và hỏi người dùng).
