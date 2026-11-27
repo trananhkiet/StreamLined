@@ -6,16 +6,16 @@ A demo app for this repo. It does three things:
 - track run history, metrics and TensorBoard curves;
 - load a teacher or student checkpoint and run predictions.
 
-The app is fully written. A scheduled task fires every 10 minutes for review / polish passes; see *Status* and *Review log*.
+The app is fully written. The scheduled review passes were cancelled at the user's request (2026-11-27).
 
 ## Stack
 
 | Area | Choice |
 |---|---|
-| Dependencies | `uv`, with `app/pyproject.toml` and `uv.lock` committed. Run with `cd app && uv sync && uv run streamlit run skd_app/main.py`. |
-| UI | Streamlit, with 4 tabs: **Train**, **Runs / History**, **TensorBoard**, **Predict**. |
+| Dependencies | `uv`, with `app/pyproject.toml` and `uv.lock` committed. Run with `cd app && uv sync && uv run python -m skd_app`. |
+| UI | **SKD Studio**: FastAPI backend (`skd_app/server.py`) and a hand-written HTML/CSS/JS dashboard (`skd_app/static/`, Chart.js vendored). Started with `uv run python -m skd_app`. Replaced the first Streamlit version at the user's request. |
 | Kaggle | The official `kaggle` CLI, called via `subprocess`. |
-| Plots | `plotly` in the UI, plus TensorBoard event files written with `torch.utils.tensorboard`. |
+| Plots | Chart.js in the UI, plus TensorBoard event files written with `torch.utils.tensorboard`. |
 | Models | `torch` and `torchvision`, CPU build, for predictions. |
 
 ## Features

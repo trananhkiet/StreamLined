@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SKD Studio</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%234f46e5'/><path d='M9 21l5-10 4 7 2-3 3 6' stroke='white' stroke-width='2.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark"><svg viewBox="0 0 32 32"><path d="M8 22l5-11 4 7 2.5-3.5L24 22" /></svg></div>
+      <div><div class="brand-name">SKD Studio</div><div class="brand-sub">Streamlined KD · CVPR 2026</div></div>
+    </div>
+    <nav class="nav">
+      <a href="#/overview" data-page="overview"><svg viewBox="0 0 24 24"><path d="M4 13h6V4H4zM14 20h6v-9h-6zM4 20h6v-3H4zM14 7h6V4h-6z"/></svg>Tổng quan</a>
+      <a href="#/train" data-page="train"><svg viewBox="0 0 24 24"><path d="M5 19c4-1 6-3 7-7m0 0c1-4 4-7 8-8-1 4-4 7-8 8zm0 0l-3-3m-3 9l3-3"/></svg>Huấn luyện</a>
+      <a href="#/runs" data-page="runs"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Thí nghiệm<span class="nav-badge" id="nav-runs-count"></span></a>
+      <a href="#/tensorboard" data-page="tensorboard"><svg viewBox="0 0 24 24"><path d="M3 20h18M6 16l4-6 4 3 5-8"/></svg>TensorBoard</a>
+      <a href="#/predict" data-page="predict"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/></svg>Dự đoán</a>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="foot-title">Tham chiếu paper (CIFAR-100)</div>
+      <div class="foot-row"><span>R56 → R20</span><b>72.50</b></div>
+      <div class="foot-row"><span>R110 → R32</span><b>74.84</b></div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <h1 id="page-title">Tổng quan</h1>
+        <p id="page-sub" class="muted"></p>
+      </div>
+      <button class="account" id="account-btn">
+        <span class="dot" id="account-dot"></span>
+        <span id="account-label">Kết nối Kaggle</span>
+      </button>
+    </header>
+    <section id="view" class="view"></section>
+  </main>
+</div>
+
+<div class="modal-backdrop" id="modal" hidden>
+  <div class="modal" role="dialog" aria-labelledby="modal-title">
+    <div class="modal-head">
+      <h2 id="modal-title">Kết nối Kaggle</h2>
+      <button class="icon-btn" data-close aria-label="Đóng">✕</button>
+    </div>
+    <p class="muted small">API key chỉ được giữ trong bộ nhớ server local của phiên này — không ghi ra file, không lưu vào lịch sử. Lấy key tại <b>kaggle.com → Settings → API → Create New Token</b>.</p>
+    <div class="dropzone small-drop" id="kaggle-json-drop">
+      <input type="file" accept=".json,application/json" id="kaggle-json-input" hidden>
+      <span>Kéo thả <code>kaggle.json</code> vào đây hoặc <a href="#" id="kaggle-json-pick">chọn file</a></span>
+    </div>
+    <div class="or"><span>hoặc nhập tay</span></div>
+    <label class="field"><span>Username</span><input id="cred-user" autocomplete="off" spellcheck="false"></label>
+    <label class="field"><span>API key</span><input id="cred-key" type="password" autocomplete="off"></label>
+    <div class="modal-actions">
+      <button class="btn ghost" id="cred-logout" hidden>Ngắt kết nối</button>
+      <span class="spacer"></span>
+      <button class="btn" data-close>Huỷ</button>
+      <button class="btn primary" id="cred-save">Kết nối</button>
+    </div>
+  </div>
+</div>
+
+<div class="toasts" id="toasts"></div>
+<script src="/vendor/chart.umd.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>

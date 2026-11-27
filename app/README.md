@@ -1,11 +1,13 @@
-# SKD Demo App
+# SKD Studio
 
-This is a Streamlit app for the Streamlined KD (knowledge distillation) experiments on CIFAR-100. It lets you:
+SKD Studio is a local web dashboard for the Streamlined KD (knowledge distillation) experiments on CIFAR-100. It lets you:
 
-- set up a training run and **train it on a Kaggle GPU**;
-- track **run history**, best / final / TB10 scores and training curves;
-- export **TensorBoard** files;
-- run **predictions** with a teacher or student checkpoint.
+- **train on a Kaggle GPU**;
+- track runs and results;
+- open TensorBoard;
+- run predictions with a teacher or student.
+
+The backend is FastAPI and the frontend is hand-written HTML/CSS/JS. No Node or npm is needed: Chart.js is bundled in `skd_app/static/vendor/`.
 
 ## Run on localhost
 
@@ -14,23 +16,27 @@ You need [uv](https://docs.astral.sh/uv/getting-started/installation/) and Pytho
 ```bash
 cd app
 uv sync
-uv run streamlit run skd_app/main.py
+uv run python -m skd_app
 ```
 
-Then open http://localhost:8501.
+The browser opens **http://localhost:8000** automatically. Options:
 
-## Using the app
+- `--port 9000` to use a different port;
+- `--no-browser` to skip opening a browser tab.
 
-| Tab | What it does |
+## Pages
+
+| Page | What it does |
 |---|---|
-| 🚀 Train | Enter your Kaggle username and API key in the sidebar, or upload `kaggle.json`. Pick the teacher (ResNet56 / ResNet110), the student (ResNet20 / ResNet32), the recipe (E4 / F1b) and hyperparameters (learning rate, epochs, batch size, T, seed). **Train trên Kaggle** pushes the kernel to Kaggle. **Smoke test** runs only a few batches so you can check the pipeline quickly. |
-| 📜 History | Lists your runs. Buttons update the status, fetch the log and download the output (history.csv, checkpoint). The tab shows best / final / TB10 scores, curves, and a comparison against the paper. **Import log** shows results from an existing log without using Kaggle. |
-| 📈 TensorBoard | Exports TensorBoard event files and starts TensorBoard inside the app. You can also run `uv run tensorboard --logdir runs` yourself. |
-| 🔮 Predict | Load a teacher (mdistiller pretrained, downloaded automatically) and/or a student (from a finished run, or an uploaded `.pth`). Then upload an image, or pick a random CIFAR-100 test image, to see the top-5 predictions. |
+| Overview | Paper numbers vs reproduction (E4, F1b), the demo workflow, and recent runs. |
+| Training | Choose the teacher (ResNet56/110), student (ResNet20/32), recipe E4/F1b and hyperparameters. The right-hand panel shows the summary, estimated GPU hours and the env vars. Use **Train on Kaggle**, or **Create notebook** (draft only). |
+| Experiments | Table of runs and a comparison chart against the paper. Click a run to update its status, fetch the log, download the output, and see best/final/TB10, curves and the log. **Load sample log** gives you a demo without Kaggle. |
+| TensorBoard | Export event files and start TensorBoard on port 6006, embedded in the page. |
+| Prediction | Load the teacher (mdistiller, downloaded automatically) and/or a student (from a run or an uploaded `.pth`), drop in an image or pick a random CIFAR-100 image, then compare the top-5 predictions. |
 
 ## Notes
 
-- **API key:** the key is kept only in the browser session's memory. It is never written to disk or saved in `runs/`.
-- **Local files:** run data, checkpoints and datasets are stored in `app/runs/`, which is gitignored.
-- **CPU-only torch on Linux** (optional, saves disk space): `uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu`.
-- **Tests:** `uv run pytest -q`.
+- **Kaggle API key:** use the **Connect Kaggle** button in the top right. You can type the key or drop in `kaggle.json`. The key stays only in the local server's memory; it is never written to disk or stored in the history.
+- **Local data:** runs, checkpoints and datasets are kept in `app/runs/` (gitignored).
+- **API docs:** http://localhost:8000/api/docs
+- **Tests:** `uv run pytest -q`

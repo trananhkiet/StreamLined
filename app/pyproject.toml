@@ -1,13 +1,14 @@
 [project]
 name = "skd-demo-app"
 version = "0.1.0"
-description = "Demo app: train Streamlined KD on Kaggle, track runs, TensorBoard, and predict with teacher/student."
+description = "SKD Studio: dashboard to train Streamlined KD on Kaggle, track runs, TensorBoard, and predict with teacher/student."
 requires-python = ">=3.10"
 dependencies = [
-    "streamlit>=1.40",
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.29",
+    "python-multipart>=0.0.9",
     "kaggle>=1.7",
     "pandas>=2.0",
-    "plotly>=5.20",
     "numpy>=1.26",
     "pillow>=10.0",
     "tensorboard>=2.16",
@@ -16,7 +17,7 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["pytest>=8.0"]
+dev = ["pytest>=8.0", "httpx>=0.27"]
 
 [tool.uv]
 package = false
