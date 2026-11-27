@@ -868,3 +868,9 @@ Mục tiêu: phân biệt H1 (F1b tốt nhờ biết teacher đúng ở *mẫu* 
 - Hai run R56→R20 nộp nhầm: CANCEL_ACKNOWLEDGED (người dùng đã dừng), không dùng.
 - Lịch `trig_01Fq7eDH5AU3XZhNtf5LM7xq` (một lần) đã chạy xong. Không có run nào đang chạy. Quota: tài khoản 1 13,36h/30h (còn 16,64h), tài khoản 2 13,45h/30h (còn 16,55h); refresh 2026-11-28 00:00 UTC.
 - Ngoài thí nghiệm: app demo `app/` (FastAPI + dashboard, `uv run python -m skd_app`) và slide Canva đã cập nhật bảng kết quả.
+
+## CẬP NHẬT 2026-11-27 — 4 loss mới L1–L4 đang chạy (R56→R20, seed 2022)
+Kế hoạch/công thức: `experiments/2026-11-27_l1_l4_new_losses.md`. Code: env mới `CORRECT_BOOST_PART` (full|tckd|nckd), `TRUST_TOPK`, `CE_WEIGHT_MODE` (full/1/complement = F1b bit-exact). Test: `test_l1_l4_losses.py`.
+- Tài khoản 1 (trananhkiet): `streamlined-kd-cifar100-l1-f1b-tckd-seed2022`, `...-l2-f1b-nckd-seed2022`
+- Tài khoản 2 (kitit5512trn): `streamlined-kd-cifar100-l3-f1b-top2-seed2022`, `...-l4-f1b-ce05-seed2022`
+- Xong dự kiến ~5h sau khi push; so với F1b s2022 72.60/72.28/72.43. Chưa chạy thêm seed.

@@ -96,6 +96,17 @@ class Config:
     # Plan item "J1" (constant-weight control) needs no new mode: SAMPLE_WEIGHT_MODE=teacher_correct with SW_TRUST = SW_DISTRUST = 0.5384.
     sw_trust: float = float(os.getenv("SW_TRUST", "0.6"))
     sw_distrust: float = float(os.getenv("SW_DISTRUST", "0.4"))
+    # Plan items "L1"/"L2" (2026-11-27): where does the extra KD weight (w_i - sw_distrust) of trusted samples go?
+    #   "full" (default, = F1b): KD_i = w_i * KL_i.
+    #   "tckd": KD_i = sw_distrust * KL_i + (w_i - sw_distrust) * TCKD_i   (boost only the target-vs-rest binary part)
+    #   "nckd": KD_i = sw_distrust * KL_i + (w_i - sw_distrust) * NCKD_w_i (boost only the non-target "dark knowledge" part)
+    # with KL = TCKD + (1 - p_T[y]) * NCKD (DKD identity; NCKD_w = (1 - p_T[y]) * NCKD, all T^2 scaled). CE weight stays 1 - w_i.
+    correct_boost_part: str = os.getenv("CORRECT_BOOST_PART", "full")
+    # Plan item "L3": a sample is trusted (weight sw_trust) when the label is in the teacher's top-k (1 = argmax, the F1b default).
+    trust_topk: int = int(os.getenv("TRUST_TOPK", "1"))
+    # Plan item "L4": CE weight per sample. "complement" (default, = F1b): 1 - w_i.  "fixed": CE_WEIGHT (0.5) on every sample,
+    # so only the KD weight depends on teacher correctness (CE and KD no longer sum to 1 on trusted samples).
+    ce_weight_mode: str = os.getenv("CE_WEIGHT_MODE", "complement")
     # Plan item "G1": "swap" fixes the teacher's soft label on training samples it misclassifies by swapping the logit of its
     # predicted (wrong) class with the logit of the true class; applied to the teacher logits used by KD, BC and the masks.
     # Evaluation of the teacher on the test set is untouched. "none" (default) keeps every previous experiment unchanged.
@@ -684,8 +695,13 @@ def teacher_correct_weights(teacher_logits: torch.Tensor, labels: torch.Tensor, 
             VIEW_STATS[f"c{view}"] += (correct & in_view).sum().item()
             VIEW_STATS[f"w{view}"] += weights[in_view].sum().item()
         return weights
+    trusted = correct
+    if CFG.trust_topk > 1:
+        topk = teacher_logits.topk(CFG.trust_topk, dim=1).indices
+        trusted = topk.eq(labels.view(-1, 1)).any(dim=1)
+        SAMPLE_WEIGHT_STATS["trusted"] += trusted.sum().item()
     trust = torch.full_like(teacher_logits[:, 0], CFG.sw_trust)
-    weights = torch.where(correct, trust, torch.full_like(trust, CFG.sw_distrust)).detach()
+    weights = torch.where(trusted, trust, torch.full_like(trust, CFG.sw_distrust)).detach()
     if CFG.sample_weight_mode == "teacher_correct_shuffled":
         shuffled = shuffle_within_batch(weights)
         SAMPLE_WEIGHT_STATS["shuffle_same"] += shuffled.eq(weights).sum().item()
@@ -708,7 +724,8 @@ def teacher_correct_weights(teacher_logits: torch.Tensor, labels: torch.Tensor, 
     return weights
 
 
-SAMPLE_WEIGHT_STATS = {"correct": 0.0, "total": 0.0, "p_label_sum": 0.0, "shuffle_same": 0.0}
+SAMPLE_WEIGHT_STATS = {"correct": 0.0, "total": 0.0, "p_label_sum": 0.0, "shuffle_same": 0.0, "trusted": 0.0}
+BOOST_STATS = {"tckd": 0.0, "kl": 0.0, "n": 0.0}
 GRAM_STATS = {"wrong": 0.0, "total": 0.0, "w_max": 0.0, "w_min": 0.0, "batches": 0.0}
 CORRECTION_STATS = {"swapped": 0.0, "total": 0.0}
 
@@ -755,6 +772,12 @@ def pop_sample_weight_stats() -> dict[str, float]:
     stats = {"teacher_train_top1_sw": 100.0 * SAMPLE_WEIGHT_STATS["correct"] / total}
     if CFG.sample_weight_mode == "teacher_prob":
         stats["teacher_p_label_mean"] = SAMPLE_WEIGHT_STATS["p_label_sum"] / total
+    if CFG.trust_topk > 1:
+        stats["sw_trusted_pct"] = 100.0 * SAMPLE_WEIGHT_STATS["trusted"] / total
+    if CFG.correct_boost_part != "full":
+        stats["tckd_share_pct"] = 100.0 * BOOST_STATS["tckd"] / max(BOOST_STATS["kl"], 1e-12)
+        for key in BOOST_STATS:
+            BOOST_STATS[key] = 0.0
     if CFG.sample_weight_mode == "teacher_correct_shuffled":
         stats["sw_shuffle_same_pct"] = 100.0 * SAMPLE_WEIGHT_STATS["shuffle_same"] / total
     if CFG.sample_weight_mode in ("teacher_correct_view_shuffled", "view_fixed"):
@@ -806,13 +829,34 @@ def distillation_losses(
             kl_per_sample = new_kl
         elif CFG.wrong_kd_mode != "full":
             raise ValueError(f"Unknown WRONG_KD_MODE: {CFG.wrong_kd_mode}")
+        if CFG.ce_weight_mode == "complement":
+            ce_weights = 1.0 - weights
+        elif CFG.ce_weight_mode == "fixed":
+            ce_weights = torch.full_like(weights, CFG.ce_weight)
+        else:
+            raise ValueError(f"Unknown CE_WEIGHT_MODE: {CFG.ce_weight_mode}")
+        if CFG.correct_boost_part == "full":
+            kd_per_sample = weights * kl_per_sample
+        elif CFG.correct_boost_part in ("tckd", "nckd"):
+            if CFG.wrong_kd_mode != "full" or CFG.late_kd_start or CFG.sample_weight_mode != "teacher_correct":
+                raise ValueError("CORRECT_BOOST_PART is defined only on plain F1b (teacher_correct, WRONG_KD_MODE=full, no late KD)")
+            nckd_w = nckd_per_sample(student_logits, teacher_logits.detach(), labels, CFG.temperature)
+            tckd = kl_per_sample - nckd_w
+            BOOST_STATS["tckd"] += tckd.detach().sum().item()
+            BOOST_STATS["kl"] += kl_per_sample.detach().sum().item()
+            part = tckd if CFG.correct_boost_part == "tckd" else nckd_w
+            kd_per_sample = CFG.sw_distrust * kl_per_sample + (weights - CFG.sw_distrust) * part
+        else:
+            raise ValueError(f"Unknown CORRECT_BOOST_PART: {CFG.correct_boost_part}")
         return {
-            "ce": ((1.0 - weights) * ce_per_sample).mean(),
-            "kd": (weights * kl_per_sample).mean() * raw["kd_mask_fraction"],
+            "ce": (ce_weights * ce_per_sample).mean(),
+            "kd": kd_per_sample.mean() * raw["kd_mask_fraction"],
             "bc": CFG.bc_weight * raw["bc"] if bc_scale == 1.0 else CFG.bc_weight * bc_scale * raw["bc"],
         }
     if CFG.late_kd_start:
         raise ValueError("LATE_KD_START requires SAMPLE_WEIGHT_MODE=teacher_correct or teacher_prob")
+    if CFG.correct_boost_part != "full" or CFG.trust_topk != 1 or CFG.ce_weight_mode != "complement":
+        raise ValueError("CORRECT_BOOST_PART / TRUST_TOPK / CE_WEIGHT_MODE require SAMPLE_WEIGHT_MODE=teacher_correct")
     if CFG.sample_weight_mode != "none":
         raise ValueError(f"Unknown SAMPLE_WEIGHT_MODE: {CFG.sample_weight_mode}")
     return {
@@ -1249,6 +1293,8 @@ def run_experiment() -> dict[str, object]:
             f"train top1={row['train_top1']:.2f} | test top1={row['test_top1']:.2f} | "
             f"best={max(best_top1, row['test_top1']):.2f}"
             + (f" | teacher_train_top1={row['teacher_train_top1_sw']:.2f}" if "teacher_train_top1_sw" in row else "")
+            + (f" | trusted={row['sw_trusted_pct']:.2f}%" if "sw_trusted_pct" in row else "")
+            + (f" | tckd_share={row['tckd_share_pct']:.1f}%" if "tckd_share_pct" in row else "")
             + (f" | p_label={row['teacher_p_label_mean']:.4f}" if "teacher_p_label_mean" in row else "")
             + (f" | teacher_swapped={row['teacher_swapped_pct']:.2f}" if "teacher_swapped_pct" in row else "")
             + (f" | sw_same={row['sw_shuffle_same_pct']:.2f}%" if "sw_shuffle_same_pct" in row else "")
