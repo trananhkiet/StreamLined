@@ -862,3 +862,9 @@ Mục tiêu: phân biệt H1 (F1b tốt nhờ biết teacher đúng ở *mẫu* 
   - seed 2024: https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-r110r32-f1b-seed2024 (tài khoản 2)
 - **Nộp nhầm trước đó (03:38 UTC):** F1b **R56→R20** seed 2023 (`trananhkiet/streamlined-kd-cifar100-f1b-seed2023`) và seed 2024 (`kitit5512trn/streamlined-kd-cifar100-f1b-seed2024`), vẫn RUNNING lúc 03:53; người dùng chọn tự dừng trên Kaggle (API không hủy được). Ghi chú trong `kaggle/experiments/2026-11-27_f1b_seeds_2023_2024.md`.
 - Quota trước run: tài khoản 1 6.44h, tài khoản 2 6.52h (refresh 2026-11-28 00:00 UTC). Lịch kiểm tra `trig_01Fq7eDH5AU3XZhNtf5LM7xq` lúc **10:53 UTC** (7h sau submit vì R110 mất ~6.5h).
+
+### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-27 10:56 UTC (F1b R110→R32 seed 2023/2024 COMPLETE; không còn lịch/run nào)
+- **F1b R110→R32, 3 seed** (best/cuối/TB10): s2022 74.70/74.40/74.47, s2023 **74.86**/74.53/74.54, s2024 74.67/74.29/74.39 → **TB 74.74±0.10 / 74.41±0.12 / 74.47±0.08**. So E4 s2022 (74.71/74.57/74.51, 1 seed): +0.03/−0.16/−0.04 → trong nhiễu, **F1b không hơn E4 ở cặp này**; paper SKD 74.84. Chi tiết: `kaggle/experiments/2026-11-27_r110_r32_f1b_seeds_2023_2024.md`.
+- Hai run R56→R20 nộp nhầm: CANCEL_ACKNOWLEDGED (người dùng đã dừng), không dùng.
+- Lịch `trig_01Fq7eDH5AU3XZhNtf5LM7xq` (một lần) đã chạy xong. Không có run nào đang chạy. Quota: tài khoản 1 13,36h/30h (còn 16,64h), tài khoản 2 13,45h/30h (còn 16,55h); refresh 2026-11-28 00:00 UTC.
+- Ngoài thí nghiệm: app demo `app/` (FastAPI + dashboard, `uv run python -m skd_app`) và slide Canva đã cập nhật bảng kết quả.
