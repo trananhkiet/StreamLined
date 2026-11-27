@@ -854,3 +854,11 @@ Mục tiêu: phân biệt H1 (F1b tốt nhờ biết teacher đúng ở *mẫu* 
 ### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-26 18:40 UTC (R110→R32 COMPLETE; không còn lịch/run nào)
 - **ResNet110 → ResNet32, seed 2022** (teacher mdistiller 74.31 = paper): **E4** = 74.71 / 74.57 / 74.51 (best/cuối/TB10), **F1b** = 74.70 / 74.40 / 74.47. **F1b − E4 = −0.01 / −0.17 / −0.04** → theo tiêu chí ghi trước: không thấy tác dụng của F1b ở cặp này (khác R56→R20: +0.33/+0.42/+0.39). E4 sát paper SKD 74.84 (−0.13). Chi tiết: `kaggle/experiments/2026-11-26_r110_r32_f1b.md`.
 - Hai lịch một lần R110→R32 đã chạy xong. Không có run nào đang chạy. Quota: tài khoản 1 6,44h/30h, tài khoản 2 6,52h/30h, tài khoản 3 0/30h (refresh 2026-11-28 00:00 UTC). Kaggle MCP gắn tài khoản 2.
+
+### TRẠNG THÁI HIỆN TẠI — cập nhật 2026-11-27 03:54 UTC (F1b R110→R32 seed 2023/2024)
+- Người dùng yêu cầu F1b trên 2 seed khác, mỗi tài khoản một seed, **cặp mới R110→R32**. Kế hoạch: `kaggle/experiments/2026-11-27_r110_r32_f1b_seeds_2023_2024.md`.
+- **ĐÃ SUBMIT** 03:52 UTC, version 1 (commit `068cafe`), cả hai RUNNING lúc 03:53:
+  - seed 2023: https://www.kaggle.com/code/trananhkiet/streamlined-kd-cifar100-r110r32-f1b-seed2023 (tài khoản 1)
+  - seed 2024: https://www.kaggle.com/code/kitit5512trn/streamlined-kd-cifar100-r110r32-f1b-seed2024 (tài khoản 2)
+- **Nộp nhầm trước đó (03:38 UTC):** F1b **R56→R20** seed 2023 (`trananhkiet/streamlined-kd-cifar100-f1b-seed2023`) và seed 2024 (`kitit5512trn/streamlined-kd-cifar100-f1b-seed2024`), vẫn RUNNING lúc 03:53; người dùng chọn tự dừng trên Kaggle (API không hủy được). Ghi chú trong `kaggle/experiments/2026-11-27_f1b_seeds_2023_2024.md`.
+- Quota trước run: tài khoản 1 6.44h, tài khoản 2 6.52h (refresh 2026-11-28 00:00 UTC). Lịch kiểm tra `trig_01Fq7eDH5AU3XZhNtf5LM7xq` lúc **10:53 UTC** (7h sau submit vì R110 mất ~6.5h).
