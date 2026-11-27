@@ -23,7 +23,6 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import Cookie, FastAPI, File, Form, HTTPException, Request, Response, UploadFile
-from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from PIL import Image
 from pydantic import BaseModel
@@ -205,25 +204,23 @@ def create_app(runs_dir: Path = RUNS_DIR) -> FastAPI:
                 "owner": c.username if c else None, "hours": round(estimated_hours(cfg), 1)}
 
     @app.post("/api/runs")
-    def submit(body: ConfigIn, dry_run: bool = False, skd_session: str | None = Cookie(default=None)):
+    def submit(body: ConfigIn, skd_session: str | None = Cookie(default=None)):
         cfg = to_cfg(body)
         errors = cfg.validate()
         if errors:
             raise HTTPException(400, "; ".join(errors))
-        c = None if dry_run else need_creds(skd_session)
-        owner = c.username if c else (creds_of(skd_session).username if creds_of(skd_session) else "your-kaggle-username")
+        c = need_creds(skd_session)
         stamp = datetime.now(timezone.utc).strftime("%m%d-%H%M%S")
         slug = cfg.slug(stamp[:9])
-        run_id = f"{stamp}-{cfg.recipe.lower()}-s{cfg.seed}-{uid()}" + ("-draft" if dry_run else "")
-        kdir = kc.build_kernel_dir(st.store.run_dir(run_id) / "kernel", owner, slug, cfg)
-        record = {"run_id": run_id, "source": "draft" if dry_run else "kaggle", "kaggle_user": owner,
-                  "kernel_ref": f"{owner}/{slug}", "url": f"https://www.kaggle.com/code/{owner}/{slug}",
-                  "config": {**body.model_dump(), "env": cfg.to_env()}, "status": "draft" if dry_run else "queued"}
-        if not dry_run:
-            res = kc.push(kdir, c)
-            info = kc.parse_push(res.output)
-            record.update(status="queued" if res.ok else "push_failed", version=info.get("version"),
-                          url=info.get("url", record["url"]), push_output=res.output[-2000:])
+        run_id = f"{stamp}-{cfg.recipe.lower()}-s{cfg.seed}-{uid()}"
+        kdir = kc.build_kernel_dir(st.store.run_dir(run_id) / "kernel", c.username, slug, cfg)
+        res = kc.push(kdir, c)
+        info = kc.parse_push(res.output)
+        record = {"run_id": run_id, "source": "kaggle", "kaggle_user": c.username,
+                  "kernel_ref": f"{c.username}/{slug}",
+                  "url": info.get("url", f"https://www.kaggle.com/code/{c.username}/{slug}"),
+                  "version": info.get("version"), "config": {**body.model_dump(), "env": cfg.to_env()},
+                  "status": "queued" if res.ok else "push_failed", "push_output": res.output[-2000:]}
         st.store.add(record)
         return record
 
@@ -242,42 +239,32 @@ def create_app(runs_dir: Path = RUNS_DIR) -> FastAPI:
         log_file = rdir / "kernel_log.txt" if (rdir / "kernel_log.txt").exists() else found.get("log")
         log_tail = metrics._log_text(log_file.read_text(errors="ignore"))[-6000:] if log_file else ""
         series = {c: [None if v != v else v for v in df[c].tolist()] for c in df.columns} if not df.empty else {}
-        artifacts = {k: str(v.relative_to(rdir)) for k, v in found.items()}
-        return {"run": get_run(run_id), "summary": summary, "series": series, "log_tail": log_tail,
-                "artifacts": artifacts, "has_notebook": (rdir / "kernel" / kc.NOTEBOOK_NAME).exists()}
+        return {"run": get_run(run_id), "summary": summary, "series": series, "log_tail": log_tail}
 
-    @app.post("/api/runs/{run_id}/status")
-    def refresh_status(run_id: str, skd_session: str | None = Cookie(default=None)):
-        run = get_run(run_id)
-        state, res = kc.status(run["kernel_ref"], need_creds(skd_session))
-        if not res.ok:
-            raise HTTPException(502, res.output[-400:])
-        return st.store.update(run_id, status=state, status_checked_at=now_iso())
-
-    @app.post("/api/runs/{run_id}/logs")
-    def fetch_logs(run_id: str, skd_session: str | None = Cookie(default=None)):
-        run = get_run(run_id)
-        res = kc.logs(run["kernel_ref"], need_creds(skd_session))
-        if not res.ok:
-            raise HTTPException(502, res.output[-400:])
-        if not res.output.strip():
-            raise HTTPException(409, "Kaggle chưa trả log — log chỉ có sau khi run kết thúc. Trong lúc chạy hãy dùng Cập nhật trạng thái.")
-        (st.store.run_dir(run_id) / "kernel_log.txt").write_text(res.output)
-        return run_detail(run_id)
-
-    @app.post("/api/runs/{run_id}/output")
-    def fetch_output(run_id: str, skd_session: str | None = Cookie(default=None)):
+    @app.post("/api/runs/{run_id}/refresh")
+    def refresh(run_id: str, skd_session: str | None = Cookie(default=None)):
+        """One button: ask Kaggle for the status; once complete, download the output (log, history, checkpoint)."""
         run = get_run(run_id)
         c = need_creds(skd_session)
+        state, res = kc.status(run["kernel_ref"], c)
+        if not res.ok:
+            raise HTTPException(502, res.output[-400:])
+        run = st.store.update(run_id, status=state, status_checked_at=now_iso())
+        has_output = "history" in metrics.find_artifacts(st.store.run_dir(run_id) / "output")
+        if state != "complete" or has_output:
+            return {"status": state, "job": None}
 
         def work():
-            res = kc.download_output(run["kernel_ref"], st.store.run_dir(run_id) / "output", c)
-            if not res.ok:
-                raise RuntimeError(res.output[-400:])
+            out = kc.download_output(run["kernel_ref"], st.store.run_dir(run_id) / "output", c)
+            if not out.ok:  # output download can be blocked on some networks; fall back to the text log
+                log = kc.logs(run["kernel_ref"], c)
+                if not (log.ok and log.output.strip()):
+                    raise RuntimeError(out.output[-400:])
+                (st.store.run_dir(run_id) / "kernel_log.txt").write_text(log.output)
             run_metrics(get_run(run_id))
             return "ok"
 
-        return {"job": start_job("output", work)}
+        return {"status": state, "job": start_job("output", work)}
 
     @app.delete("/api/runs/{run_id}")
     def delete_run(run_id: str):
@@ -286,46 +273,24 @@ def create_app(runs_dir: Path = RUNS_DIR) -> FastAPI:
         return {"deleted": run_id}
 
     @app.post("/api/runs/import")
-    async def import_run(file: UploadFile = File(...), teacher: str = Form("resnet56"), student: str = Form("resnet20"),
-                         recipe: str = Form("E4"), label: str = Form("")):
+    async def import_run(file: UploadFile = File(...)):
+        """Import a Kaggle log or history.csv; teacher/student are read from the log when present."""
         run_id = "import-" + datetime.now(timezone.utc).strftime("%m%d-%H%M%S") + f"-{uid()}"
         out = st.store.run_dir(run_id) / "output"
         out.mkdir(parents=True, exist_ok=True)
         name = "history.csv" if (file.filename or "").endswith(".csv") else "imported.log"
-        (out / name).write_bytes(await file.read())
-        st.store.add({"run_id": run_id, "source": "import", "status": "complete", "file": file.filename,
-                      "label": label, "config": {"teacher": teacher, "student": student, "recipe": recipe}})
-        df, summary = run_metrics(get_run(run_id))
+        raw = await file.read()
+        (out / name).write_bytes(raw)
+        _, info = metrics.parse_log(raw.decode(errors="ignore")) if name != "history.csv" else (None, {})
+        teacher = (info.get("teacher_arch") or "resnet56").lower()
+        student = info.get("student_arch") or {"resnet56": "resnet20", "resnet110": "resnet32"}.get(teacher, "resnet20")
+        st.store.add({"run_id": run_id, "source": "import", "status": "complete", "label": file.filename,
+                      "config": {"teacher": teacher, "student": student, "recipe": info.get("recipe", "—")}})
+        df, _ = run_metrics(get_run(run_id))
         if df.empty:
             st.store.delete(run_id)
             raise HTTPException(400, "Không đọc được epoch nào trong file này")
         return get_run(run_id)
-
-    @app.post("/api/runs/import-sample")
-    def import_sample():
-        sample = Path(__file__).resolve().parent.parent / "tests" / "fixtures" / "sample_kaggle_log.json"
-        run_id = "sample-" + datetime.now(timezone.utc).strftime("%m%d-%H%M%S") + f"-{uid()}"
-        out = st.store.run_dir(run_id) / "output"
-        out.mkdir(parents=True, exist_ok=True)
-        (out / "imported.log").write_bytes(sample.read_bytes())
-        st.store.add({"run_id": run_id, "source": "import", "status": "complete", "file": sample.name,
-                      "label": "Log mẫu E4 (12 epoch đầu)",
-                      "config": {"teacher": "resnet56", "student": "resnet20", "recipe": "E4", "seed": 2021}})
-        run_metrics(get_run(run_id))
-        return get_run(run_id)
-
-    @app.get("/api/runs/{run_id}/notebook")
-    def notebook(run_id: str):
-        path = st.store.run_dir(run_id) / "kernel" / kc.NOTEBOOK_NAME
-        if not path.exists():
-            raise HTTPException(404, "Không có notebook")
-        return FileResponse(path, filename=f"{run_id}.ipynb")
-
-    @app.get("/api/runs/{run_id}/metrics.csv")
-    def metrics_csv(run_id: str):
-        df, _ = run_metrics(get_run(run_id))
-        return PlainTextResponse(df.to_csv(index=False), media_type="text/csv",
-                                 headers={"Content-Disposition": f'attachment; filename="{run_id}_metrics.csv"'})
 
     # ------------------------------------------------------------ jobs
 
@@ -335,46 +300,27 @@ def create_app(runs_dir: Path = RUNS_DIR) -> FastAPI:
             raise HTTPException(404, "Job không tồn tại")
         return {k: v for k, v in st.jobs[job_id].items() if k != "result" or isinstance(v, (str, int, float))}
 
-    # ------------------------------------------------------------ TensorBoard
-
-    def tb_running() -> bool:
-        return st.tensorboard is not None and st.tensorboard.poll() is None
+    # ------------------------------------------------------------ TensorBoard (one button)
 
     def port_free(port: int) -> bool:
         with socket.socket() as s:
             return s.connect_ex(("127.0.0.1", port)) != 0
 
-    @app.get("/api/tensorboard")
-    def tb_status():
-        return {"running": tb_running(), "url": "http://localhost:6006" if (tb_running() or not port_free(6006)) else None,
-                "logdir": str(st.runs_dir)}
-
-    @app.post("/api/tensorboard/export")
-    def tb_export():
-        total, exported = 0, 0
+    @app.post("/api/tensorboard")
+    def tensorboard():
+        """Convert every run's metrics to TensorBoard events, start TensorBoard once, return its URL."""
+        exported = 0
         for run in st.store.list():
             df, _ = run_metrics(run)
             if not df.empty:
-                total += metrics.export_tensorboard(df, st.store.run_dir(run["run_id"]) / "tb")
+                metrics.export_tensorboard(df, st.runs_dir / "tb" / run["run_id"])
                 exported += 1
-        return {"runs": exported, "scalars": total}
-
-    @app.post("/api/tensorboard/start")
-    def tb_start():
-        if not tb_running():
-            if not port_free(6006):
-                return {"running": False, "url": "http://localhost:6006", "note": "Port 6006 đang được dùng"}
+        running = st.tensorboard is not None and st.tensorboard.poll() is None
+        if not running and port_free(6006):
             st.tensorboard = subprocess.Popen(
-                [sys.executable, "-m", "tensorboard.main", "--logdir", str(st.runs_dir), "--port", "6006",
+                [sys.executable, "-m", "tensorboard.main", "--logdir", str(st.runs_dir / "tb"), "--port", "6006",
                  "--host", "127.0.0.1"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        return {"running": True, "url": "http://localhost:6006"}
-
-    @app.post("/api/tensorboard/stop")
-    def tb_stop():
-        if tb_running():
-            st.tensorboard.terminate()
-        st.tensorboard = None
-        return {"running": False}
+        return {"runs": exported, "url": "http://localhost:6006"}
 
     # ------------------------------------------------------------ models / predict
 

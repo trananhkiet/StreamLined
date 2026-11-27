@@ -12,6 +12,8 @@ EPOCH_RE = re.compile(
     r"epoch (\d+)/(\d+) \| lr=([0-9.eE+-]+) \| train top1=([0-9.]+) \| test top1=([0-9.]+) \| best=([0-9.]+)"
 )
 TEACHER_RE = re.compile(r"Teacher (\w+) \((\w+)\): top1=([0-9.]+), top5=([0-9.]+)")
+STUDENT_RE = re.compile(r"student arch (resnet\d+)")
+RECIPE_RE = re.compile(r"teacher_train_top1=")  # only printed when per-sample teacher-correct weights (F1b family) are on
 
 
 def _log_text(raw: str) -> str:
@@ -44,6 +46,11 @@ def parse_log(raw: str) -> tuple[pd.DataFrame, dict]:
     if teacher:
         info.update(teacher_arch=teacher.group(1), teacher_source=teacher.group(2),
                     teacher_top1=float(teacher.group(3)), teacher_top5=float(teacher.group(4)))
+    student = STUDENT_RE.search(text)
+    if student:
+        info["student_arch"] = student.group(1)
+    if rows:
+        info["recipe"] = "F1 (teacher-aware)" if RECIPE_RE.search(text) else "E4"
     df = pd.DataFrame(sorted(rows.values(), key=lambda r: r["epoch"]))
     return df, info
 
