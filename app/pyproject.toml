@@ -8,6 +8,7 @@ dependencies = [
     "uvicorn[standard]>=0.29",
     "python-multipart>=0.0.9",
     "kaggle>=1.7",
+    "six>=1.16",  # kaggle 2.x imports six but does not declare it
     "pandas>=2.0",
     "numpy>=1.26",
     "pillow>=10.0",
