@@ -6,7 +6,7 @@ A demo app for this repo. It does three things:
 - track run history, metrics and TensorBoard curves;
 - load a teacher or student checkpoint and run predictions.
 
-The work is built step by step by a scheduled task that fires every 10 minutes. Each firing does the **next unchecked milestone**, ticks it, commits and pushes. When every milestone is done, the task disables itself.
+The app is fully written. A scheduled task fires every 10 minutes for review / polish passes; see *Status* and *Review log*.
 
 ## Stack
 
@@ -56,25 +56,30 @@ The work is built step by step by a scheduled task that fires every 10 minutes. 
    - A "random CIFAR-100 test images" mode compares teacher and student predictions side by side.
    - Model builders are imported from, or copied minimally from, `kaggle/streamlined_kd_cifar100.py`, so architectures and state_dict keys match.
 
-## Milestones
+## Status
 
-Each firing does exactly one milestone, ticks it here, then commits and pushes.
+The whole app was written in one pass on 2026-11-27, at the user's request; milestones M1–M7 were collapsed into it.
 
-- [ ] M1 Scaffold:
-  - `app/pyproject.toml` (uv), `uv.lock`, package `app/skd_app/`, `app/README.md`;
-  - add `app/runs/`, `app/.venv/`, `*.pth` and `*.pt` to `.gitignore`;
-  - an empty Streamlit app with the 4 tabs;
-  - `uv sync` works.
-- [ ] M2 `kaggle_client.py`: credential handling, kernel-folder builder, push, status, logs and output, with unit tests that mock `subprocess`.
-- [ ] M3 `runs.py`: run store, and `metrics.py` for log/history parsing, best/final/TB10 and TensorBoard export, with tests on a real log excerpt from `kaggle_outputs/`.
-- [ ] M4 Train tab and Runs/History tab, wired to M2 and M3.
-- [ ] M5 `models.py` and the Predict tab: load teacher/student, image → top-5, random test-sample comparison, with tests using a randomly initialized model.
-- [ ] M6 TensorBoard tab, `app/README.md` usage guide, a headless check that the app starts (`streamlit run` plus an HTTP 200), all tests passing.
-- [ ] M7 Final:
-  - update `kaggle/EXPERIMENT_HANDOFF.md`;
-  - commit and push;
-  - report to the user;
-  - **disable the scheduled task**.
+Checks run on that pass:
+
+- 19 tests pass (`uv run pytest -q`).
+- Headless start returns HTTP 200.
+- A Playwright check of the Train, History (import log) and Predict tabs (real mdistiller ResNet56 teacher) found no exceptions.
+
+Later scheduled passes are **review / polish only**: fix bugs, smooth UX rough edges, or add ONE small item from *Ideas*. Keep it demo-friendly.
+
+## Review log
+
+(one line per scheduled review pass; the series stops after 6 entries)
+
+## Ideas (small, demo-friendly)
+
+- Comparison chart in History: the y-axis lower bound is ignored (`yaxis_range=[min, None]`), so bars start at 0. Zoom to the data range.
+- "Demo data" button that imports the bundled `tests/fixtures/sample_kaggle_log.json` in one click.
+- Auto-refresh toggle in History (poll status every N minutes while a run is running).
+- Show Kaggle GPU quota in the sidebar after the credential check (`kaggle` CLI does not expose it; skip if not possible).
+- Predict: grid of 8 random CIFAR-100 test images with teacher-vs-student agreement.
+- Export a run's metrics and config as a small Markdown report for slides.
 
 ## Rules for the scheduled task
 

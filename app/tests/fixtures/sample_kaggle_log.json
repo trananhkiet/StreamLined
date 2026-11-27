@@ -1,0 +1,29 @@
+[{"stream_name":"stderr","time":5.722807771,"data":"/usr/local/lib/python3.13/dist-packages/nbformat/validator.py:434: MissingIDFieldWarning: Cell is missing an id field, this will become a hard error in future nbformat versions. You may want to use `normalize()` on your notebooks before validations (available since nbformat 5.1.4). Previous versions of nbformat are fixing this issue transparently, and will stop doing so in the future.\n"}
+,{"stream_name":"stderr","time":5.722840048,"data":"  _validate(nbdict, ref, version, version_minor, relax_add_props)\n"}
+,{"stream_name":"stderr","time":6.531676564,"data":"0.00s - Debugger warning: It seems that frozen modules are being used, which may\n"}
+,{"stream_name":"stderr","time":6.531704509,"data":"0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off\n"}
+,{"stream_name":"stderr","time":6.531710155,"data":"0.00s - to python to disable frozen modules.\n"}
+,{"stream_name":"stderr","time":6.531714405,"data":"0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.\n"}
+,{"stream_name":"stderr","time":7.10372675,"data":"0.00s - Debugger warning: It seems that frozen modules are being used, which may\n"}
+,{"stream_name":"stderr","time":7.103773589,"data":"0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off\n"}
+,{"stream_name":"stderr","time":7.103780806,"data":"0.00s - to python to disable frozen modules.\n"}
+,{"stream_name":"stderr","time":7.103785058,"data":"0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.\n"}
+,{"stream_name":"stdout","time":19.176881758,"data":"PyTorch: 2.11.0+cu128\n"}
+,{"stream_name":"stdout","time":19.176911476,"data":"torchvision: 0.26.0+cu128\n"}
+,{"stream_name":"stdout","time":19.176916554,"data":"device: cuda\n"}
+,{"stream_name":"stdout","time":19.672912335,"data":"Using checksum-verified CIFAR-100 from /kaggle/input/datasets/fedesoriano/cifar100\n"}
+,{"stream_name":"stdout","time":22.709695874,"data":"Downloading mdistiller ResNet56 teacher (streams the 364 MB cifar_teachers.tar)...\n"}
+,{"stream_name":"stdout","time":44.50851929,"data":"Teacher ResNet56 (mdistiller): top1=72.41, top5=92.50\n"}
+,{"stream_name":"stdout","time":102.146854138,"data":"epoch 001/300 | lr=0.1 | train top1=9.73 | test top1=17.34 | best=17.34\n"}
+,{"stream_name":"stdout","time":158.947480583,"data":"epoch 002/300 | lr=0.1 | train top1=22.14 | test top1=27.91 | best=27.91\n"}
+,{"stream_name":"stdout","time":215.088133943,"data":"epoch 003/300 | lr=0.1 | train top1=28.72 | test top1=34.88 | best=34.88\n"}
+,{"stream_name":"stdout","time":271.604532637,"data":"epoch 004/300 | lr=0.1 | train top1=31.87 | test top1=33.86 | best=34.88\n"}
+,{"stream_name":"stdout","time":327.410915868,"data":"epoch 005/300 | lr=0.1 | train top1=33.68 | test top1=37.25 | best=37.25\n"}
+,{"stream_name":"stdout","time":384.242306033,"data":"epoch 006/300 | lr=0.1 | train top1=35.12 | test top1=38.81 | best=38.81\n"}
+,{"stream_name":"stdout","time":441.395338249,"data":"epoch 007/300 | lr=0.1 | train top1=35.64 | test top1=40.44 | best=40.44\n"}
+,{"stream_name":"stdout","time":497.607740427,"data":"epoch 008/300 | lr=0.1 | train top1=36.36 | test top1=41.05 | best=41.05\n"}
+,{"stream_name":"stdout","time":553.949969975,"data":"epoch 009/300 | lr=0.1 | train top1=37.02 | test top1=42.81 | best=42.81\n"}
+,{"stream_name":"stdout","time":610.579212855,"data":"epoch 010/300 | lr=0.1 | train top1=37.40 | test top1=45.59 | best=45.59\n"}
+,{"stream_name":"stdout","time":666.950845802,"data":"epoch 011/300 | lr=0.1 | train top1=37.73 | test top1=42.42 | best=45.59\n"}
+,{"stream_name":"stdout","time":723.210111707,"data":"epoch 012/300 | lr=0.1 | train top1=37.81 | test top1=39.00 | best=45.59\n"}
+]

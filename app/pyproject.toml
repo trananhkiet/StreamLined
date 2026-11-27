@@ -1,0 +1,27 @@
+[project]
+name = "skd-demo-app"
+version = "0.1.0"
+description = "Demo app: train Streamlined KD on Kaggle, track runs, TensorBoard, and predict with teacher/student."
+requires-python = ">=3.10"
+dependencies = [
+    "streamlit>=1.40",
+    "kaggle>=1.7",
+    "pandas>=2.0",
+    "plotly>=5.20",
+    "numpy>=1.26",
+    "pillow>=10.0",
+    "tensorboard>=2.16",
+    "torch>=2.2",
+    "torchvision>=0.17",
+]
+
+[dependency-groups]
+dev = ["pytest>=8.0"]
+
+[tool.uv]
+package = false
+
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
