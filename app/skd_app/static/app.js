@@ -492,7 +492,7 @@ async function renderRunDetail() {
           <button class="btn sm" data-act="status" ${can ? "" : "disabled"}>Cập nhật trạng thái</button>
           <button class="btn sm" data-act="logs" ${can ? "" : "disabled"}>Lấy log</button>
           <button class="btn sm" data-act="output" ${can ? "" : "disabled"}>Tải output</button>
-          <label class="row small muted" title="Mỗi 60 giây cập nhật trạng thái + log"><label class="switch" style="transform:scale(.8)"><input type="checkbox" id="auto-ref" ${state.autoRefresh ? "checked" : ""} ${can ? "" : "disabled"}><span></span></label>Tự động</label>` : ""}
+          <label class="row small muted" title="Mỗi 60 giây cập nhật trạng thái; tự tải output khi run hoàn thành"><label class="switch" style="transform:scale(.8)"><input type="checkbox" id="auto-ref" ${state.autoRefresh ? "checked" : ""} ${can ? "" : "disabled"}><span></span></label>Tự động</label>` : ""}
         ${d.has_notebook ? `<a class="btn sm" href="/api/runs/${encodeURIComponent(r.run_id)}/notebook">Notebook</a>` : ""}
         ${d.series.epoch ? `<a class="btn sm" href="/api/runs/${encodeURIComponent(r.run_id)}/metrics.csv">CSV</a>` : ""}
         <button class="btn sm ghost danger" data-act="delete">Xoá</button>
@@ -510,7 +510,7 @@ async function renderRunDetail() {
       </div>
       <div><div class="row small" style="justify-content:space-between;margin-bottom:6px"><span class="muted">Tiến độ</span><b>${done}/${total || "?"} epoch</b></div><div class="progress"><div style="width:${pct}%"></div></div></div>
       ${d.series.epoch ? `<div class="chart-box"><canvas id="detail-chart"></canvas></div>`
-        : `<div class="empty"><div class="big">Chưa có số liệu</div>${isKaggle ? "Bấm <b>Lấy log</b> khi đang chạy hoặc <b>Tải output</b> khi đã xong." : "Run này chưa có epoch nào."}</div>`}
+        : `<div class="empty"><div class="big">Chưa có số liệu</div>${isKaggle ? "Kaggle chỉ trả log/output khi run đã xong. Trong lúc chạy, bật <b>Tự động</b> để theo dõi trạng thái; khi <b>Hoàn thành</b> thì bấm <b>Tải output</b>." : "Run này chưa có epoch nào."}</div>`}
       <div class="grid g2">
         <div><div class="section-title">Log</div><div class="log" id="log-view">${d.log_tail ? highlightLog(d.log_tail) : '<span style="color:#7d86a1">(chưa có log)</span>'}</div></div>
         <div><div class="section-title">Cấu hình</div><div class="codebox" style="max-height:300px;height:300px">${Object.entries(c.env || c).filter(([k]) => k !== "env").map(([k, v]) => `<span class="k">${esc(k)}</span>=<span class="v">${esc(typeof v === "object" ? JSON.stringify(v) : v)}</span>`).join("<br>")}</div></div>
@@ -551,10 +551,18 @@ async function renderRunDetail() {
     clearInterval(state.autoRefresh); state.autoRefresh = null;
     if (auto.checked) {
       state.autoRefresh = setInterval(async () => {
-        try { await api(`/api/runs/${encodeURIComponent(r.run_id)}/status`, { method: "POST", quiet: true }); await api(`/api/runs/${encodeURIComponent(r.run_id)}/logs`, { method: "POST", quiet: true }); } catch {}
+        try {
+          const st = await api(`/api/runs/${encodeURIComponent(r.run_id)}/status`, { method: "POST", quiet: true });
+          if (st.status === "complete") {
+            clearInterval(state.autoRefresh); state.autoRefresh = null;
+            toast("Run đã hoàn thành — đang tải output…", "ok");
+            const { job } = await api(`/api/runs/${encodeURIComponent(r.run_id)}/output`, { method: "POST", quiet: true });
+            await waitJob(job);
+          }
+        } catch {}
         if (location.hash.startsWith("#/runs") && state.selectedRun === r.run_id) renderRunDetail();
       }, 60000);
-      toast("Tự động cập nhật mỗi 60 giây", "info");
+      toast("Tự động kiểm tra mỗi 60 giây, tải output khi xong", "info");
     }
   };
 }

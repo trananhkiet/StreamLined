@@ -260,6 +260,8 @@ def create_app(runs_dir: Path = RUNS_DIR) -> FastAPI:
         res = kc.logs(run["kernel_ref"], need_creds(skd_session))
         if not res.ok:
             raise HTTPException(502, res.output[-400:])
+        if not res.output.strip():
+            raise HTTPException(409, "Kaggle chưa trả log — log chỉ có sau khi run kết thúc. Trong lúc chạy hãy dùng Cập nhật trạng thái.")
         (st.store.run_dir(run_id) / "kernel_log.txt").write_text(res.output)
         return run_detail(run_id)
 

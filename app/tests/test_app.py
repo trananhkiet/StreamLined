@@ -83,6 +83,16 @@ def test_cli_passes_creds_only_via_env_and_redacts(monkeypatch):
     assert seen["env"]["KAGGLE_KEY"] == FAKE.key and seen["env"]["KAGGLE_USERNAME"] == "demo-user"
     assert not Path(seen["env"]["KAGGLE_CONFIG_DIR"]).exists()  # temp config dir removed afterwards
     assert FAKE.key not in repr(FAKE) and FAKE.key not in str(FAKE)
+    assert "KAGGLE_API_TOKEN" not in seen["env"]
+
+
+def test_new_style_token_goes_to_api_token_env(monkeypatch):
+    seen = {}
+    token = kc.Credentials("demo-user", "KGAT_fake0123456789abcdef0123456789")
+    monkeypatch.setattr(kc.subprocess, "run", lambda cmd, env, **kw: seen.update(env=env) or
+                        subprocess.CompletedProcess(cmd, 0, stdout="", stderr=""))
+    kc.run_cli(["kernels", "list"], token)
+    assert seen["env"]["KAGGLE_API_TOKEN"] == token.key and "KAGGLE_KEY" not in seen["env"]
 
 
 def test_parse_status_and_push():

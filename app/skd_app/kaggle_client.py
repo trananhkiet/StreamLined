@@ -1,7 +1,7 @@
 """Thin wrapper around the official `kaggle` CLI.
 
 Credentials live only in memory (`Credentials`) and reach the CLI through the subprocess environment
-(KAGGLE_USERNAME / KAGGLE_KEY). They are never written to disk, logged, or stored in run records, and every
+(KAGGLE_USERNAME plus KAGGLE_KEY for legacy keys or KAGGLE_API_TOKEN for KGAT_ tokens). They are never written to disk, logged, or stored in run records, and every
 CLI output is redacted before it is returned.
 """
 
@@ -37,6 +37,9 @@ class Credentials:
         data = json.loads(raw)
         return cls(username=str(data["username"]).strip(), key=str(data["key"]).strip())
 
+    def is_api_token(self) -> bool:
+        return self.key.startswith("KGAT_")
+
     def is_complete(self) -> bool:
         return bool(self.username and self.key)
 
@@ -67,7 +70,10 @@ def redact(text: str, creds: Credentials | None) -> str:
 def _env(creds: Credentials, config_dir: str) -> dict[str, str]:
     env = {k: v for k, v in os.environ.items() if not k.startswith("KAGGLE_")}
     env["KAGGLE_USERNAME"] = creds.username
-    env["KAGGLE_KEY"] = creds.key
+    if creds.is_api_token():
+        env["KAGGLE_API_TOKEN"] = creds.key  # new-style token from kaggle.com → Settings → API Tokens
+    else:
+        env["KAGGLE_KEY"] = creds.key  # legacy 32-hex key from kaggle.json
     # Point the CLI at an empty config dir so it never reads or writes a kaggle.json on this machine.
     env["KAGGLE_CONFIG_DIR"] = config_dir
     return env
