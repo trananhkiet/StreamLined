@@ -32,4 +32,20 @@ Thời gian dự kiến ~4.9h/run. Notebook: `l{1..4}_*_seed2022.ipynb` (mỗi c
 Chỉ coi là có tín hiệu nếu best/TB10 vượt F1b ≥ ~0.4 *và* cùng chiều ở TB10; nếu không, ghi nhận "không tách khỏi nhiễu". Chọn cấu hình không dựa trên test set — bất kỳ biến thể thắng nào phải xác nhận thêm seed 2023/2024 trước khi kết luận.
 
 ## Kết quả
-(chưa có — đang chạy)
+Seed 2022, 300 epoch, cả 4 run hoàn tất (số lấy từ log, không dùng test set để chọn cấu hình).
+
+| Biến thể | best | final | TB10 | Δbest vs F1b | Δbest vs E4 |
+|---|---|---|---|---|---|
+| E4 (tham chiếu) | 72.11 | 71.84 | 71.92 | −0.49 | 0 |
+| **F1b (tham chiếu)** | **72.60** | 72.28 | 72.43 | 0 | +0.49 |
+| L1 F1b-TCKD | 72.06 | 71.70 | 71.82 | −0.54 | −0.05 |
+| L2 F1b-NCKD | 71.98 | 71.82 | 71.75 | −0.62 | −0.13 |
+| L3 F1b-Top2 | 72.09 | 71.56 | 71.82 | −0.51 | −0.02 |
+| L4 F1b-CE0.5 | 72.53 | 72.34 | 72.33 | −0.07 | +0.42 |
+
+Thống kê log: L1 TCKD chiếm ~23% KL, L2 ~25%; L3 tin teacher ở ~74.7% mẫu (so với top-1 ~ phần teacher đúng).
+
+Kết luận (1 seed, nhiễu 0.3–0.5, chỉ để sàng lọc):
+- Không biến thể nào vượt F1b. Không cần chạy thêm seed cho chúng để tìm "thắng".
+- L1, L2, L3 đều rơi về mức E4 (±0.1): tăng KD chỉ ở TCKD *hoặc* chỉ ở NCKD, hoặc mở rộng tin cậy sang top-2, đều làm mất phần lợi của F1b → lợi ích của F1b cần boost trên toàn bộ KL và đúng tập mẫu teacher-đúng-top1.
+- L4 ≈ F1b (−0.07, trong nhiễu): giữ CE = 0.5 cố định (không giảm CE ở mẫu tin cậy) không làm mất lợi ích → phần lợi nằm ở KD tăng cho mẫu teacher đúng, không phải ở việc giảm CE.

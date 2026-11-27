@@ -874,3 +874,6 @@ Kế hoạch/công thức: `experiments/2026-11-27_l1_l4_new_losses.md`. Code: e
 - Tài khoản 1 (trananhkiet): `streamlined-kd-cifar100-l1-f1b-tckd-seed2022`, `...-l2-f1b-nckd-seed2022`
 - Tài khoản 2 (kitit5512trn): `streamlined-kd-cifar100-l3-f1b-top2-seed2022`, `...-l4-f1b-ce05-seed2022`
 - Xong dự kiến ~5h sau khi push; so với F1b s2022 72.60/72.28/72.43. Chưa chạy thêm seed.
+
+### Kết quả L1–L4 (2026-11-27 19:30 UTC) — cả 4 xong, chi tiết trong `experiments/2026-11-27_l1_l4_new_losses.md`
+best/final/TB10: L1 TCKD 72.06/71.70/71.82; L2 NCKD 71.98/71.82/71.75; L3 Top2 72.09/71.56/71.82; L4 CE0.5 72.53/72.34/72.33 (F1b 72.60/72.28/72.43, E4 72.11/71.84/71.92). L1–L3 ≈ E4 (mất lợi của F1b); L4 ≈ F1b. Không biến thể nào vượt F1b; chưa chạy thêm seed.
